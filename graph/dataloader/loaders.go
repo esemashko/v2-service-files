@@ -1,0 +1,60 @@
+package dataloader
+
+import (
+	"context"
+	"main/ent"
+)
+
+type ctxKey string
+
+const (
+	LoadersKey = ctxKey("dataloaders")
+)
+
+// Loaders holds all data loaders
+type Loaders struct {
+	// Federation entity loaders - for resolving entities from other services
+	//FederationTenantLoader *BatchLoader[uuid.UUID, *ent.Tenant]
+}
+
+// NewLoaders creates new data loaders
+func NewLoaders(client *ent.Client) *Loaders {
+	// Federation readers
+	//federationTenantReader := NewFederationTenantReader(client)
+
+	return &Loaders{
+		// Federation loaders
+		//FederationTenantLoader: NewBatchLoader(federationTenantReader.GetTenantsByID, 2*time.Millisecond, 100),
+	}
+}
+
+// For returns the loaders from context
+func For(ctx context.Context) *Loaders {
+	v := ctx.Value(LoadersKey)
+	if v == nil {
+		return nil
+	}
+	return v.(*Loaders)
+}
+
+// WithLoaders stores the loaders in the context
+func WithLoaders(ctx context.Context, loaders *Loaders) context.Context {
+	return context.WithValue(ctx, LoadersKey, loaders)
+}
+
+// GetFederationTenant gets a Tenant entity for federation resolution
+// This is used by entity resolvers when other services request Tenant entities
+/*func GetFederationTenant(ctx context.Context, userID uuid.UUID) (*ent.Tenant, error) {
+	loaders := For(ctx)
+	if loaders == nil {
+		// Если DataLoader не инициализирован, получаем клиент из контекста и создаем loader
+		client := ent.FromContext(ctx)
+		if client == nil {
+			return nil, nil
+		}
+		// Создаем временный loader для этого запроса
+		loaders = NewLoaders(client)
+		ctx = context.WithValue(ctx, LoadersKey, loaders)
+	}
+	return loaders.FederationTenantLoader.Load(ctx, userID)
+}*/

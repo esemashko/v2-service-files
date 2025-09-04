@@ -1,0 +1,41 @@
+FROM --platform=$BUILDPLATFORM golang:1.25.0-alpine AS builder
+
+WORKDIR /app
+COPY . .
+
+# Install ca-certificates and build dependencies
+RUN apk add --no-cache ca-certificates tzdata postgresql-client curl
+
+# Build the application with proper flags for production
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -ldflags="-s -w" -a -installsuffix cgo -o /app/service .
+
+# Create minimal production image
+FROM alpine:3.19
+
+# Add minimal required packages for PostgreSQL
+RUN apk add --no-cache ca-certificates tzdata postgresql-client bash && \
+    addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Import from builder
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /app/service /service
+COPY --from=builder /app/locales/build /app/locales/build
+
+# Set timezone environment variable (can be overridden at runtime)
+ENV TZ=UTC
+# Устанавливаем окружение production для приложения
+ENV ENV=production
+
+# Define working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose application port
+EXPOSE 9030
+
+# Run as application
+ENTRYPOINT ["/service"]

@@ -1,0 +1,14 @@
+.idea
+.env
+.env.test
+.env.dev
+.env.full
+tmp
+docker-compose.yml
+backups/
+types/grid/interfaces/
+*TODO*
+/cron/cron_example.go
+/main
+query_logs/
+/tairo-backend

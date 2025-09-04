@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+Helpdesk SaaS (ITIL 4)
+	•	Описание: мультиарендная система техподдержки с полной изоляцией данных.
+	•	Ключевые функции:
+	•	регистрация и авторизация организаций
+	•	управление тикетами
+	•	i18n (en/ru)
+	•	GraphQL API с автогенерацией типов
+	•	Архитектура: Clean Architecture
+	•	API: schema, resolvers, security-директивы
+	•	Middleware: tenant, auth, i18n
+	•	Context: tenant, locale
+	•	Стек: Go (ent, gqlgen), PostgreSQL; фронтенд — Next.js, React, TypeScript
+	•	Мультитенантность: динамическое подключение к БД, миграции, строгая изоляция данных
+	•	Безопасность: роли owner/admin/member; директивы @admin/@owner/@member
+	•	Мониторинг & логирование: Prometheus, zap, трассировка, алерты
+	•	CI/CD & деплой: Docker, Kubernetes, бэкапы
+	•	Локализация: JSON-файлы en/ru, utils.T()

@@ -1,0 +1,14 @@
+{
+  "error": {
+    "subdomain": {},
+    "system": {
+      "not_implemented": "Feature not implemented"
+    },
+    "tenant": {},
+    "transaction": {}
+  },
+  "success": {
+    "subdomain": {},
+    "tenant": {}
+  }
+}

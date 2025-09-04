@@ -1,0 +1,14 @@
+{
+  "error": {
+    "subdomain": {},
+    "system": {
+      "not_implemented": "Функция не реализована"
+    },
+    "tenant": {},
+    "transaction": {}
+  },
+  "success": {
+    "subdomain": {},
+    "tenant": {}
+  }
+}

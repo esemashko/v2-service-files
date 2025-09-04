@@ -1,0 +1,130 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Ent ORM, Транзакции и Хуки: Best Practices
+
+## 1. Явная передача клиента и контекста
+
+- Всегда передавайте `*ent.Client` явно во все сервисные методы.
+- Никогда не используйте `ent.FromContext(ctx)` вне хуков Ent.
+- Для всех операций, которые могут вызвать хуки Ent (`Save`, `Exec`, `Update`, `Delete` и т.д.), оборачивайте контекст через `ent.NewContext(ctx, client)`.
+
+**Пример:**
+```go
+ctxWithClient := ent.NewContext(ctx, client)
+err := client.Ticket.UpdateOneID(id).SetStatus(newStatus).Exec(ctxWithClient)
+```
+
+---
+
+## 2. Управление транзакциями только в бизнес-логике
+
+- Не используйте глобальные транзакции через middleware.
+- Транзакции инициируются и коммитятся вручную в резолверах/сервисах, где требуется атомарность.
+
+**Паттерн для резолвера:**
+```go
+func (r *mutationResolver) UpdateTicket(ctx context.Context, input model.UpdateTicketInput) (*model.TicketResponse, error) {
+    tx, err := r.client.Tx(ctx)
+    if err != nil {
+        return &model.TicketResponse{
+            Success: false,
+            Message: utils.T(ctx, "error.transaction.failed"),
+        }, nil
+    }
+    defer func() {
+        if err != nil {
+            _ = tx.Rollback()
+        }
+    }()
+
+    txCtx := ent.NewTxContext(ctx, tx)
+    ticket, err := services.TicketService.UpdateTicket(txCtx, tx.Client(), input)
+    if err != nil {
+        return &model.TicketResponse{
+            Success: false,
+            Message: err.Error(),
+        }, nil
+    }
+
+    tx.OnCommit(func(ctx context.Context, _ *ent.Tx) error {
+        // Публикация события в Redis
+        return nil
+    })
+
+    if err = tx.Commit(); err != nil {
+        return &model.TicketResponse{
+            Success: false,
+            Message: utils.T(ctx, "error.transaction.commit_failed"),
+        }, nil
+    }
+
+    ticket = ticket.Unwrap()
+    return &model.TicketResponse{
+        Success: true,
+        Message: utils.T(ctx, "success.ticket.updated"),
+        Ticket:  ticket,
+    }, nil
+}
+```
+
+---
+
+## 3. Сервисы: только явный клиент и обёрнутый контекст
+
+- Сервисные методы принимают `client *ent.Client` и используют только его.
+- Контекст для операций, вызывающих хуки, всегда оборачивается через `ent.NewContext(ctx, client)`.
+
+**Пример:**
+```go
+func (s *TicketService) UpdateTicket(ctx context.Context, client *ent.Client, input model.UpdateTicketInput) (*ent.Ticket, error) {
+    ctxWithClient := ent.NewContext(ctx, client)
+    ticket, err := client.Ticket.UpdateOneID(input.ID).
+        SetStatus(input.Status).
+        Save(ctxWithClient)
+    if err != nil {
+        return nil, errors.New(utils.T(ctx, "error.ticket.update_failed"))
+    }
+    return ticket, nil
+}
+```
+
+---
+
+## 4. Post-commit хуки
+
+- Все внешние действия (например, публикация событий в Redis) выполняются только в post-commit хуке транзакции.
+- Используйте `tx.OnCommit(...)` для регистрации таких действий.
+
+**Пример:**
+```go
+tx.OnCommit(func(ctx context.Context, _ *ent.Tx) error {
+    // Публикация события
+    return publisher.PublishTicketUpdated(ctx, ticket.ID)
+})
+```
+
+---
+
+## 5. Unwrap для сущностей после транзакции
+
+- Если сервис возвращает сущность, полученную через транзакционный клиент, и она будет использоваться для подгрузки edges, вызовите `.Unwrap()` **только в резолвере, непосредственно перед возвратом ответа**.
+- В сервисах и других слоях Unwrap не вызывается.
+- Не вызывайте `.Unwrap()` повторно — это приведёт к panic.
+
+**Пример (только в резолвере):**
+```go
+// В резолвере, после коммита транзакции:
+ticket = ticket.Unwrap()
+return &model.TicketResponse{
+    Success: true,
+    Message: utils.T(ctx, "success.ticket.updated"),
+    Ticket:  ticket,
+}, nil
+```
+
+> Подробнее: [Ent Transactions — Unwrap](https://entgo.io/docs/transactions)
+
+---
