@@ -16,20 +16,27 @@ import (
 )
 
 var (
-	// serviceName is cached at package initialization to avoid repeated env lookups
+	// serviceName is cached after first access to avoid repeated env lookups
 	serviceName string
 	// redisCacheKeyPrefix includes the service name for multi-service isolation
 	redisCacheKeyPrefix string
+	// prefixInitialized tracks whether prefix has been initialized
+	prefixInitialized bool
 )
 
-func init() {
-	// Get service name from environment or use default
-	serviceName = os.Getenv("APP_SERVICE_NAME")
-	if serviceName == "" {
-		serviceName = "default"
+// getCacheKeyPrefix returns the cache key prefix with lazy initialization
+func getCacheKeyPrefix() string {
+	if !prefixInitialized {
+		// Get service name from environment or use default
+		serviceName = os.Getenv("APP_SERVICE_NAME")
+		if serviceName == "" {
+			serviceName = "default"
+		}
+		// Build cache prefix with service isolation
+		redisCacheKeyPrefix = fmt.Sprintf("entcache:v2:service:%s:", serviceName)
+		prefixInitialized = true
 	}
-	// Build cache prefix with service isolation
-	redisCacheKeyPrefix = fmt.Sprintf("entcache:v2:service:%s:", serviceName)
+	return redisCacheKeyPrefix
 }
 
 // tenantAwareRedisLevel implements entcache.AddGetDeleter with tenant and service isolation
@@ -50,7 +57,7 @@ func (t *tenantAwareRedisLevel) tenantIDFromContext(ctx context.Context) string 
 }
 
 func (t *tenantAwareRedisLevel) versionKeyForTenant(tenantID string) string {
-	return fmt.Sprintf("%stenant:%s:version", redisCacheKeyPrefix, tenantID)
+	return fmt.Sprintf("%stenant:%s:version", getCacheKeyPrefix(), tenantID)
 }
 
 func (t *tenantAwareRedisLevel) buildVersionedKey(ctx context.Context, key entcache.Key) (string, error) {
@@ -62,7 +69,7 @@ func (t *tenantAwareRedisLevel) buildVersionedKey(ctx context.Context, key entca
 	if errors.Is(err, goredis.Nil) {
 		ver = "0"
 	}
-	return fmt.Sprintf("%stenant:%s:v%s:%v", redisCacheKeyPrefix, tenantID, ver, key), nil
+	return fmt.Sprintf("%stenant:%s:v%s:%v", getCacheKeyPrefix(), tenantID, ver, key), nil
 }
 
 // Add stores entry in Redis with TTL
@@ -128,7 +135,7 @@ func createAutoCacheInvalidationHook(client *goredis.Client) ent.Hook {
 					}
 					bctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					defer cancel()
-					versionKey := fmt.Sprintf("%stenant:%s:version", redisCacheKeyPrefix, tenantID.String())
+					versionKey := fmt.Sprintf("%stenant:%s:version", getCacheKeyPrefix(), tenantID.String())
 					if _, incErr := client.Incr(bctx, versionKey).Result(); incErr != nil {
 						utils.Logger.Error("Failed to increment cache version",
 							zap.Error(incErr),
