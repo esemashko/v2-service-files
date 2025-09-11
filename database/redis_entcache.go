@@ -15,6 +15,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// maxCacheVersion defines the maximum value for cache version before cycling back to 0
+	// This prevents integer overflow and keeps cache keys shorter
+	maxCacheVersion = 100000
+)
+
 var (
 	// serviceName is cached after first access to avoid repeated env lookups
 	serviceName string
@@ -136,12 +142,33 @@ func createAutoCacheInvalidationHook(client *goredis.Client) ent.Hook {
 					bctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					defer cancel()
 					versionKey := fmt.Sprintf("%stenant:%s:version", getCacheKeyPrefix(), tenantID.String())
-					if _, incErr := client.Incr(bctx, versionKey).Result(); incErr != nil {
+
+					// Increment version and check if we need to cycle back to 0
+					newVersion, incErr := client.Incr(bctx, versionKey).Result()
+					if incErr != nil {
 						utils.Logger.Error("Failed to increment cache version",
 							zap.Error(incErr),
 							zap.String("tenant_id", tenantID.String()),
 							zap.String("entity_type", mutation.Type()),
 						)
+						return
+					}
+
+					// If version exceeds max, reset to 0
+					// This automatically invalidates all cached entries since they use the old version
+					if newVersion >= maxCacheVersion {
+						if setErr := client.Set(bctx, versionKey, 0, 0).Err(); setErr != nil {
+							utils.Logger.Error("Failed to reset cache version",
+								zap.Error(setErr),
+								zap.String("tenant_id", tenantID.String()),
+								zap.Int64("version", newVersion),
+							)
+						} else {
+							utils.Logger.Info("Cache version cycled back to 0",
+								zap.String("tenant_id", tenantID.String()),
+								zap.Int64("previous_version", newVersion),
+							)
+						}
 					}
 				}(ctx, m)
 			}
