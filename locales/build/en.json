@@ -1,11 +1,16 @@
 {
   "error": {
+    "internal": {
+      "redis_subscription_failed": "Failed to subscribe to Redis channel",
+      "redis_unavailable": "Redis service is unavailable"
+    },
     "subdomain": {},
     "system": {
       "not_implemented": "Feature not implemented"
     },
     "tenant": {},
-    "transaction": {}
+    "transaction": {},
+    "unauthorized": "Unauthorized access"
   },
   "success": {
     "subdomain": {},

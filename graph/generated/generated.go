@@ -62,6 +62,7 @@ type ComplexityRoot struct {
 	}
 
 	File struct {
+		CanDelete    func(childComplexity int) int
 		CreateTime   func(childComplexity int) int
 		CreatedBy    func(childComplexity int) int
 		Description  func(childComplexity int) int
@@ -122,6 +123,7 @@ type EntityResolver interface {
 }
 type FileResolver interface {
 	CreatedBy(ctx context.Context, obj *ent.File) (*ent.User, error)
+	CanDelete(ctx context.Context, obj *ent.File) (bool, error)
 }
 type MutationResolver interface {
 	UploadFile(ctx context.Context, input ent.CreateFileInput) (*ent.File, error)
@@ -176,6 +178,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Entity.FindUserByID(childComplexity, args["id"].(uuid.UUID)), true
+
+	case "File.canDelete":
+		if e.complexity.File.CanDelete == nil {
+			break
+		}
+
+		return e.complexity.File.CanDelete(childComplexity), true
 
 	case "File.createTime":
 		if e.complexity.File.CreateTime == nil {
@@ -959,6 +968,11 @@ extend type File @key(fields: "id") {
     updateFile(id: UUID!, input: UpdateFileInput!): File! @auth
     deleteFile(id: UUID!): Boolean! @auth
 }
+
+extend type File {
+    # Computed permission: whether current user can delete this file
+    canDelete: Boolean! @auth
+}
 `, BuiltIn: false},
 	{Name: "../../federation/directives.graphql", Input: `
 	directive @authenticated on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
@@ -1290,6 +1304,8 @@ func (ec *executionContext) fieldContext_Entity_findFileByID(ctx context.Context
 				return ec.fieldContext_File_metadata(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_File_createdBy(ctx, field)
+			case "canDelete":
+				return ec.fieldContext_File_canDelete(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
 		},
@@ -1846,6 +1862,72 @@ func (ec *executionContext) fieldContext_File_createdBy(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _File_canDelete(ctx context.Context, field graphql.CollectedField, obj *ent.File) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_File_canDelete(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		directive0 := func(rctx context.Context) (any, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.File().CanDelete(rctx, obj)
+		}
+
+		directive1 := func(ctx context.Context) (any, error) {
+			if ec.directives.Auth == nil {
+				var zeroVal bool
+				return zeroVal, errors.New("directive auth is not implemented")
+			}
+			return ec.directives.Auth(ctx, obj, directive0)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(bool); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be bool`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_File_canDelete(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "File",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _FileConnection_edges(ctx context.Context, field graphql.CollectedField, obj *ent.FileConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_FileConnection_edges(ctx, field)
 	if err != nil {
@@ -2049,6 +2131,8 @@ func (ec *executionContext) fieldContext_FileEdge_node(_ context.Context, field 
 				return ec.fieldContext_File_metadata(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_File_createdBy(ctx, field)
+			case "canDelete":
+				return ec.fieldContext_File_canDelete(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
 		},
@@ -2183,6 +2267,8 @@ func (ec *executionContext) fieldContext_Mutation_uploadFile(ctx context.Context
 				return ec.fieldContext_File_metadata(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_File_createdBy(ctx, field)
+			case "canDelete":
+				return ec.fieldContext_File_canDelete(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
 		},
@@ -2284,6 +2370,8 @@ func (ec *executionContext) fieldContext_Mutation_updateFile(ctx context.Context
 				return ec.fieldContext_File_metadata(ctx, field)
 			case "createdBy":
 				return ec.fieldContext_File_createdBy(ctx, field)
+			case "canDelete":
+				return ec.fieldContext_File_canDelete(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
 		},
@@ -6123,6 +6211,42 @@ func (ec *executionContext) _File(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._File_createdBy(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "canDelete":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._File_canDelete(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

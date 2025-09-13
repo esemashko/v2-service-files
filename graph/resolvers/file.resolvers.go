@@ -43,3 +43,8 @@ func (r *mutationResolver) UpdateFile(ctx context.Context, id uuid.UUID, input e
 func (r *mutationResolver) DeleteFile(ctx context.Context, id uuid.UUID) (bool, error) {
 	panic(fmt.Errorf("not implemented: DeleteFile - deleteFile"))
 }
+
+// CanDelete is the resolver for the canDelete field on File.
+func (r *fileResolver) CanDelete(ctx context.Context, obj *ent.File) (bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteFile - deleteFile"))
+}

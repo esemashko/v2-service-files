@@ -3,3 +3,8 @@ extend type Mutation {
     updateFile(id: UUID!, input: UpdateFileInput!): File! @auth
     deleteFile(id: UUID!): Boolean! @auth
 }
+
+extend type File {
+    # Computed permission: whether current user can delete this file
+    canDelete: Boolean! @auth
+}

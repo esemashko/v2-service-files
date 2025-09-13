@@ -1,11 +1,16 @@
 {
   "error": {
+    "internal": {
+      "redis_subscription_failed": "Не удалось подписаться на канал Redis",
+      "redis_unavailable": "Сервис Redis недоступен"
+    },
     "subdomain": {},
     "system": {
       "not_implemented": "Функция не реализована"
     },
     "tenant": {},
-    "transaction": {}
+    "transaction": {},
+    "unauthorized": "Неавторизованный доступ"
   },
   "success": {
     "subdomain": {},
