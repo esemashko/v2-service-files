@@ -4,8 +4,8 @@ package runtime
 
 import (
 	"context"
+	"main/ent/file"
 	"main/ent/schema"
-	"main/ent/tenant"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,41 +18,52 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
-	tenantMixin := schema.Tenant{}.Mixin()
-	tenant.Policy = privacy.NewPolicies(schema.Tenant{})
-	tenant.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+	fileMixin := schema.File{}.Mixin()
+	file.Policy = privacy.NewPolicies(schema.File{})
+	file.Hooks[0] = func(next ent.Mutator) ent.Mutator {
 		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-			if err := tenant.Policy.EvalMutation(ctx, m); err != nil {
+			if err := file.Policy.EvalMutation(ctx, m); err != nil {
 				return nil, err
 			}
 			return next.Mutate(ctx, m)
 		})
 	}
-	tenantMixinHooks1 := tenantMixin[1].Hooks()
-
-	tenant.Hooks[1] = tenantMixinHooks1[0]
-	tenantMixinInters2 := tenantMixin[2].Interceptors()
-	tenantMixinInters3 := tenantMixin[3].Interceptors()
-	tenant.Interceptors[0] = tenantMixinInters2[0]
-	tenant.Interceptors[1] = tenantMixinInters3[0]
-	tenantMixinFields0 := tenantMixin[0].Fields()
-	_ = tenantMixinFields0
-	tenantFields := schema.Tenant{}.Fields()
-	_ = tenantFields
-	// tenantDescCreateTime is the schema descriptor for create_time field.
-	tenantDescCreateTime := tenantMixinFields0[0].Descriptor()
-	// tenant.DefaultCreateTime holds the default value on creation for the create_time field.
-	tenant.DefaultCreateTime = tenantDescCreateTime.Default.(func() time.Time)
-	// tenantDescUpdateTime is the schema descriptor for update_time field.
-	tenantDescUpdateTime := tenantMixinFields0[1].Descriptor()
-	// tenant.DefaultUpdateTime holds the default value on creation for the update_time field.
-	tenant.DefaultUpdateTime = tenantDescUpdateTime.Default.(func() time.Time)
-	// tenant.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
-	tenant.UpdateDefaultUpdateTime = tenantDescUpdateTime.UpdateDefault.(func() time.Time)
-	// tenantDescID is the schema descriptor for id field.
-	tenantDescID := tenantFields[0].Descriptor()
-	// tenant.DefaultID holds the default value on creation for the id field.
-	tenant.DefaultID = tenantDescID.Default.(func() uuid.UUID)
+	fileMixinInters1 := fileMixin[1].Interceptors()
+	file.Interceptors[0] = fileMixinInters1[0]
+	fileMixinFields0 := fileMixin[0].Fields()
+	_ = fileMixinFields0
+	fileFields := schema.File{}.Fields()
+	_ = fileFields
+	// fileDescCreateTime is the schema descriptor for create_time field.
+	fileDescCreateTime := fileMixinFields0[0].Descriptor()
+	// file.DefaultCreateTime holds the default value on creation for the create_time field.
+	file.DefaultCreateTime = fileDescCreateTime.Default.(func() time.Time)
+	// fileDescUpdateTime is the schema descriptor for update_time field.
+	fileDescUpdateTime := fileMixinFields0[1].Descriptor()
+	// file.DefaultUpdateTime holds the default value on creation for the update_time field.
+	file.DefaultUpdateTime = fileDescUpdateTime.Default.(func() time.Time)
+	// file.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	file.UpdateDefaultUpdateTime = fileDescUpdateTime.UpdateDefault.(func() time.Time)
+	// fileDescOriginalName is the schema descriptor for original_name field.
+	fileDescOriginalName := fileFields[2].Descriptor()
+	// file.OriginalNameValidator is a validator for the "original_name" field. It is called by the builders before save.
+	file.OriginalNameValidator = fileDescOriginalName.Validators[0].(func(string) error)
+	// fileDescStorageKey is the schema descriptor for storage_key field.
+	fileDescStorageKey := fileFields[3].Descriptor()
+	// file.StorageKeyValidator is a validator for the "storage_key" field. It is called by the builders before save.
+	file.StorageKeyValidator = fileDescStorageKey.Validators[0].(func(string) error)
+	// fileDescMimeType is the schema descriptor for mime_type field.
+	fileDescMimeType := fileFields[4].Descriptor()
+	// file.MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
+	file.MimeTypeValidator = fileDescMimeType.Validators[0].(func(string) error)
+	// fileDescSize is the schema descriptor for size field.
+	fileDescSize := fileFields[5].Descriptor()
+	// file.SizeValidator is a validator for the "size" field. It is called by the builders before save.
+	file.SizeValidator = fileDescSize.Validators[0].(func(int64) error)
+	// fileDescID is the schema descriptor for id field.
+	fileDescID := fileFields[0].Descriptor()
+	// file.DefaultID holds the default value on creation for the id field.
+	file.DefaultID = fileDescID.Default.(func() uuid.UUID)
 }
 
 const (

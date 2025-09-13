@@ -1,0 +1,5 @@
+extend type Mutation {
+    uploadFile(input: CreateFileInput!): File! @auth
+    updateFile(id: UUID!, input: UpdateFileInput!): File! @auth
+    deleteFile(id: UUID!): Boolean! @auth
+}

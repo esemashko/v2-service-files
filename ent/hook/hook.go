@@ -8,16 +8,16 @@ import (
 	"main/ent"
 )
 
-// The TenantFunc type is an adapter to allow the use of ordinary
-// function as Tenant mutator.
-type TenantFunc func(context.Context, *ent.TenantMutation) (ent.Value, error)
+// The FileFunc type is an adapter to allow the use of ordinary
+// function as File mutator.
+type FileFunc func(context.Context, *ent.FileMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f TenantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.TenantMutation); ok {
+func (f FileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FileMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TenantMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FileMutation", m)
 }
 
 // Condition is a hook condition function.

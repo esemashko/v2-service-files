@@ -4,14 +4,14 @@ package ent
 
 import (
 	"context"
-	"main/ent/tenant"
+	"main/ent/file"
 
 	"entgo.io/contrib/entgql"
 	"github.com/99designs/gqlgen/graphql"
 )
 
 // CollectFields tells the query-builder to eagerly load connected nodes by resolver context.
-func (_q *TenantQuery) CollectFields(ctx context.Context, satisfies ...string) (*TenantQuery, error) {
+func (_q *FileQuery) CollectFields(ctx context.Context, satisfies ...string) (*FileQuery, error) {
 	fc := graphql.GetFieldContext(ctx)
 	if fc == nil {
 		return _q, nil
@@ -22,29 +22,59 @@ func (_q *TenantQuery) CollectFields(ctx context.Context, satisfies ...string) (
 	return _q, nil
 }
 
-func (_q *TenantQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
+func (_q *FileQuery) collectField(ctx context.Context, oneNode bool, opCtx *graphql.OperationContext, collected graphql.CollectedField, path []string, satisfies ...string) error {
 	path = append([]string(nil), path...)
 	var (
 		unknownSeen    bool
-		fieldSeen      = make(map[string]struct{}, len(tenant.Columns))
-		selectedFields = []string{tenant.FieldID}
+		fieldSeen      = make(map[string]struct{}, len(file.Columns))
+		selectedFields = []string{file.FieldID}
 	)
 	for _, field := range graphql.CollectFields(opCtx, collected.Selections, satisfies) {
 		switch field.Name {
 		case "createTime":
-			if _, ok := fieldSeen[tenant.FieldCreateTime]; !ok {
-				selectedFields = append(selectedFields, tenant.FieldCreateTime)
-				fieldSeen[tenant.FieldCreateTime] = struct{}{}
+			if _, ok := fieldSeen[file.FieldCreateTime]; !ok {
+				selectedFields = append(selectedFields, file.FieldCreateTime)
+				fieldSeen[file.FieldCreateTime] = struct{}{}
 			}
 		case "updateTime":
-			if _, ok := fieldSeen[tenant.FieldUpdateTime]; !ok {
-				selectedFields = append(selectedFields, tenant.FieldUpdateTime)
-				fieldSeen[tenant.FieldUpdateTime] = struct{}{}
+			if _, ok := fieldSeen[file.FieldUpdateTime]; !ok {
+				selectedFields = append(selectedFields, file.FieldUpdateTime)
+				fieldSeen[file.FieldUpdateTime] = struct{}{}
 			}
-		case "deletedAt":
-			if _, ok := fieldSeen[tenant.FieldDeletedAt]; !ok {
-				selectedFields = append(selectedFields, tenant.FieldDeletedAt)
-				fieldSeen[tenant.FieldDeletedAt] = struct{}{}
+		case "originalName":
+			if _, ok := fieldSeen[file.FieldOriginalName]; !ok {
+				selectedFields = append(selectedFields, file.FieldOriginalName)
+				fieldSeen[file.FieldOriginalName] = struct{}{}
+			}
+		case "storageKey":
+			if _, ok := fieldSeen[file.FieldStorageKey]; !ok {
+				selectedFields = append(selectedFields, file.FieldStorageKey)
+				fieldSeen[file.FieldStorageKey] = struct{}{}
+			}
+		case "mimeType":
+			if _, ok := fieldSeen[file.FieldMimeType]; !ok {
+				selectedFields = append(selectedFields, file.FieldMimeType)
+				fieldSeen[file.FieldMimeType] = struct{}{}
+			}
+		case "size":
+			if _, ok := fieldSeen[file.FieldSize]; !ok {
+				selectedFields = append(selectedFields, file.FieldSize)
+				fieldSeen[file.FieldSize] = struct{}{}
+			}
+		case "path":
+			if _, ok := fieldSeen[file.FieldPath]; !ok {
+				selectedFields = append(selectedFields, file.FieldPath)
+				fieldSeen[file.FieldPath] = struct{}{}
+			}
+		case "description":
+			if _, ok := fieldSeen[file.FieldDescription]; !ok {
+				selectedFields = append(selectedFields, file.FieldDescription)
+				fieldSeen[file.FieldDescription] = struct{}{}
+			}
+		case "metadata":
+			if _, ok := fieldSeen[file.FieldMetadata]; !ok {
+				selectedFields = append(selectedFields, file.FieldMetadata)
+				fieldSeen[file.FieldMetadata] = struct{}{}
 			}
 		case "id":
 		case "__typename":
@@ -58,14 +88,14 @@ func (_q *TenantQuery) collectField(ctx context.Context, oneNode bool, opCtx *gr
 	return nil
 }
 
-type tenantPaginateArgs struct {
+type filePaginateArgs struct {
 	first, last   *int
 	after, before *Cursor
-	opts          []TenantPaginateOption
+	opts          []FilePaginateOption
 }
 
-func newTenantPaginateArgs(rv map[string]any) *tenantPaginateArgs {
-	args := &tenantPaginateArgs{}
+func newFilePaginateArgs(rv map[string]any) *filePaginateArgs {
+	args := &filePaginateArgs{}
 	if rv == nil {
 		return args
 	}
@@ -83,28 +113,34 @@ func newTenantPaginateArgs(rv map[string]any) *tenantPaginateArgs {
 	}
 	if v, ok := rv[orderByField]; ok {
 		switch v := v.(type) {
-		case map[string]any:
-			var (
-				err1, err2 error
-				order      = &TenantOrder{Field: &TenantOrderField{}, Direction: entgql.OrderDirectionAsc}
-			)
-			if d, ok := v[directionField]; ok {
-				err1 = order.Direction.UnmarshalGQL(d)
+		case []*FileOrder:
+			args.opts = append(args.opts, WithFileOrder(v))
+		case []any:
+			var orders []*FileOrder
+			for i := range v {
+				mv, ok := v[i].(map[string]any)
+				if !ok {
+					continue
+				}
+				var (
+					err1, err2 error
+					order      = &FileOrder{Field: &FileOrderField{}, Direction: entgql.OrderDirectionAsc}
+				)
+				if d, ok := mv[directionField]; ok {
+					err1 = order.Direction.UnmarshalGQL(d)
+				}
+				if f, ok := mv[fieldField]; ok {
+					err2 = order.Field.UnmarshalGQL(f)
+				}
+				if err1 == nil && err2 == nil {
+					orders = append(orders, order)
+				}
 			}
-			if f, ok := v[fieldField]; ok {
-				err2 = order.Field.UnmarshalGQL(f)
-			}
-			if err1 == nil && err2 == nil {
-				args.opts = append(args.opts, WithTenantOrder(order))
-			}
-		case *TenantOrder:
-			if v != nil {
-				args.opts = append(args.opts, WithTenantOrder(v))
-			}
+			args.opts = append(args.opts, WithFileOrder(orders))
 		}
 	}
-	if v, ok := rv[whereField].(*TenantWhereInput); ok {
-		args.opts = append(args.opts, WithTenantFilter(v.Filter))
+	if v, ok := rv[whereField].(*FileWhereInput); ok {
+		args.opts = append(args.opts, WithFileFilter(v.Filter))
 	}
 	return args
 }

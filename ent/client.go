@@ -11,7 +11,7 @@ import (
 
 	"main/ent/migrate"
 
-	"main/ent/tenant"
+	"main/ent/file"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -24,8 +24,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
-	// Tenant is the client for interacting with the Tenant builders.
-	Tenant *TenantClient
+	// File is the client for interacting with the File builders.
+	File *FileClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -37,7 +37,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
-	c.Tenant = NewTenantClient(c.config)
+	c.File = NewFileClient(c.config)
 }
 
 type (
@@ -130,7 +130,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:    ctx,
 		config: cfg,
-		Tenant: NewTenantClient(cfg),
+		File:   NewFileClient(cfg),
 	}, nil
 }
 
@@ -150,14 +150,14 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:    ctx,
 		config: cfg,
-		Tenant: NewTenantClient(cfg),
+		File:   NewFileClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Tenant.
+//		File.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -179,126 +179,126 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Tenant.Use(hooks...)
+	c.File.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Tenant.Intercept(interceptors...)
+	c.File.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
-	case *TenantMutation:
-		return c.Tenant.mutate(ctx, m)
+	case *FileMutation:
+		return c.File.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
 }
 
-// TenantClient is a client for the Tenant schema.
-type TenantClient struct {
+// FileClient is a client for the File schema.
+type FileClient struct {
 	config
 }
 
-// NewTenantClient returns a client for the Tenant from the given config.
-func NewTenantClient(c config) *TenantClient {
-	return &TenantClient{config: c}
+// NewFileClient returns a client for the File from the given config.
+func NewFileClient(c config) *FileClient {
+	return &FileClient{config: c}
 }
 
 // Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `tenant.Hooks(f(g(h())))`.
-func (c *TenantClient) Use(hooks ...Hook) {
-	c.hooks.Tenant = append(c.hooks.Tenant, hooks...)
+// A call to `Use(f, g, h)` equals to `file.Hooks(f(g(h())))`.
+func (c *FileClient) Use(hooks ...Hook) {
+	c.hooks.File = append(c.hooks.File, hooks...)
 }
 
 // Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `tenant.Intercept(f(g(h())))`.
-func (c *TenantClient) Intercept(interceptors ...Interceptor) {
-	c.inters.Tenant = append(c.inters.Tenant, interceptors...)
+// A call to `Intercept(f, g, h)` equals to `file.Intercept(f(g(h())))`.
+func (c *FileClient) Intercept(interceptors ...Interceptor) {
+	c.inters.File = append(c.inters.File, interceptors...)
 }
 
-// Create returns a builder for creating a Tenant entity.
-func (c *TenantClient) Create() *TenantCreate {
-	mutation := newTenantMutation(c.config, OpCreate)
-	return &TenantCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Create returns a builder for creating a File entity.
+func (c *FileClient) Create() *FileCreate {
+	mutation := newFileMutation(c.config, OpCreate)
+	return &FileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// CreateBulk returns a builder for creating a bulk of Tenant entities.
-func (c *TenantClient) CreateBulk(builders ...*TenantCreate) *TenantCreateBulk {
-	return &TenantCreateBulk{config: c.config, builders: builders}
+// CreateBulk returns a builder for creating a bulk of File entities.
+func (c *FileClient) CreateBulk(builders ...*FileCreate) *FileCreateBulk {
+	return &FileCreateBulk{config: c.config, builders: builders}
 }
 
 // MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
 // a builder and applies setFunc on it.
-func (c *TenantClient) MapCreateBulk(slice any, setFunc func(*TenantCreate, int)) *TenantCreateBulk {
+func (c *FileClient) MapCreateBulk(slice any, setFunc func(*FileCreate, int)) *FileCreateBulk {
 	rv := reflect.ValueOf(slice)
 	if rv.Kind() != reflect.Slice {
-		return &TenantCreateBulk{err: fmt.Errorf("calling to TenantClient.MapCreateBulk with wrong type %T, need slice", slice)}
+		return &FileCreateBulk{err: fmt.Errorf("calling to FileClient.MapCreateBulk with wrong type %T, need slice", slice)}
 	}
-	builders := make([]*TenantCreate, rv.Len())
+	builders := make([]*FileCreate, rv.Len())
 	for i := 0; i < rv.Len(); i++ {
 		builders[i] = c.Create()
 		setFunc(builders[i], i)
 	}
-	return &TenantCreateBulk{config: c.config, builders: builders}
+	return &FileCreateBulk{config: c.config, builders: builders}
 }
 
-// Update returns an update builder for Tenant.
-func (c *TenantClient) Update() *TenantUpdate {
-	mutation := newTenantMutation(c.config, OpUpdate)
-	return &TenantUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Update returns an update builder for File.
+func (c *FileClient) Update() *FileUpdate {
+	mutation := newFileMutation(c.config, OpUpdate)
+	return &FileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOne returns an update builder for the given entity.
-func (c *TenantClient) UpdateOne(_m *Tenant) *TenantUpdateOne {
-	mutation := newTenantMutation(c.config, OpUpdateOne, withTenant(_m))
-	return &TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *FileClient) UpdateOne(_m *File) *FileUpdateOne {
+	mutation := newFileMutation(c.config, OpUpdateOne, withFile(_m))
+	return &FileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // UpdateOneID returns an update builder for the given id.
-func (c *TenantClient) UpdateOneID(id uuid.UUID) *TenantUpdateOne {
-	mutation := newTenantMutation(c.config, OpUpdateOne, withTenantID(id))
-	return &TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+func (c *FileClient) UpdateOneID(id uuid.UUID) *FileUpdateOne {
+	mutation := newFileMutation(c.config, OpUpdateOne, withFileID(id))
+	return &FileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// Delete returns a delete builder for Tenant.
-func (c *TenantClient) Delete() *TenantDelete {
-	mutation := newTenantMutation(c.config, OpDelete)
-	return &TenantDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+// Delete returns a delete builder for File.
+func (c *FileClient) Delete() *FileDelete {
+	mutation := newFileMutation(c.config, OpDelete)
+	return &FileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
 // DeleteOne returns a builder for deleting the given entity.
-func (c *TenantClient) DeleteOne(_m *Tenant) *TenantDeleteOne {
+func (c *FileClient) DeleteOne(_m *File) *FileDeleteOne {
 	return c.DeleteOneID(_m.ID)
 }
 
 // DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *TenantClient) DeleteOneID(id uuid.UUID) *TenantDeleteOne {
-	builder := c.Delete().Where(tenant.ID(id))
+func (c *FileClient) DeleteOneID(id uuid.UUID) *FileDeleteOne {
+	builder := c.Delete().Where(file.ID(id))
 	builder.mutation.id = &id
 	builder.mutation.op = OpDeleteOne
-	return &TenantDeleteOne{builder}
+	return &FileDeleteOne{builder}
 }
 
-// Query returns a query builder for Tenant.
-func (c *TenantClient) Query() *TenantQuery {
-	return &TenantQuery{
+// Query returns a query builder for File.
+func (c *FileClient) Query() *FileQuery {
+	return &FileQuery{
 		config: c.config,
-		ctx:    &QueryContext{Type: TypeTenant},
+		ctx:    &QueryContext{Type: TypeFile},
 		inters: c.Interceptors(),
 	}
 }
 
-// Get returns a Tenant entity by its id.
-func (c *TenantClient) Get(ctx context.Context, id uuid.UUID) (*Tenant, error) {
-	return c.Query().Where(tenant.ID(id)).Only(ctx)
+// Get returns a File entity by its id.
+func (c *FileClient) Get(ctx context.Context, id uuid.UUID) (*File, error) {
+	return c.Query().Where(file.ID(id)).Only(ctx)
 }
 
 // GetX is like Get, but panics if an error occurs.
-func (c *TenantClient) GetX(ctx context.Context, id uuid.UUID) *Tenant {
+func (c *FileClient) GetX(ctx context.Context, id uuid.UUID) *File {
 	obj, err := c.Get(ctx, id)
 	if err != nil {
 		panic(err)
@@ -307,38 +307,38 @@ func (c *TenantClient) GetX(ctx context.Context, id uuid.UUID) *Tenant {
 }
 
 // Hooks returns the client hooks.
-func (c *TenantClient) Hooks() []Hook {
-	hooks := c.hooks.Tenant
-	return append(hooks[:len(hooks):len(hooks)], tenant.Hooks[:]...)
+func (c *FileClient) Hooks() []Hook {
+	hooks := c.hooks.File
+	return append(hooks[:len(hooks):len(hooks)], file.Hooks[:]...)
 }
 
 // Interceptors returns the client interceptors.
-func (c *TenantClient) Interceptors() []Interceptor {
-	inters := c.inters.Tenant
-	return append(inters[:len(inters):len(inters)], tenant.Interceptors[:]...)
+func (c *FileClient) Interceptors() []Interceptor {
+	inters := c.inters.File
+	return append(inters[:len(inters):len(inters)], file.Interceptors[:]...)
 }
 
-func (c *TenantClient) mutate(ctx context.Context, m *TenantMutation) (Value, error) {
+func (c *FileClient) mutate(ctx context.Context, m *FileMutation) (Value, error) {
 	switch m.Op() {
 	case OpCreate:
-		return (&TenantCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&FileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdate:
-		return (&TenantUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&FileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpUpdateOne:
-		return (&TenantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+		return (&FileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
 	case OpDelete, OpDeleteOne:
-		return (&TenantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+		return (&FileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
-		return nil, fmt.Errorf("ent: unknown Tenant mutation op: %q", m.Op())
+		return nil, fmt.Errorf("ent: unknown File mutation op: %q", m.Op())
 	}
 }
 
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Tenant []ent.Hook
+		File []ent.Hook
 	}
 	inters struct {
-		Tenant []ent.Interceptor
+		File []ent.Interceptor
 	}
 )

@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"main/ent"
+	"main/ent/file"
 	"main/ent/predicate"
-	"main/ent/tenant"
 
 	"entgo.io/ent/dialect/sql"
 )
@@ -69,38 +69,38 @@ func (f TraverseFunc) Traverse(ctx context.Context, q ent.Query) error {
 	return f(ctx, query)
 }
 
-// The TenantFunc type is an adapter to allow the use of ordinary function as a Querier.
-type TenantFunc func(context.Context, *ent.TenantQuery) (ent.Value, error)
+// The FileFunc type is an adapter to allow the use of ordinary function as a Querier.
+type FileFunc func(context.Context, *ent.FileQuery) (ent.Value, error)
 
 // Query calls f(ctx, q).
-func (f TenantFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
-	if q, ok := q.(*ent.TenantQuery); ok {
+func (f FileFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.FileQuery); ok {
 		return f(ctx, q)
 	}
-	return nil, fmt.Errorf("unexpected query type %T. expect *ent.TenantQuery", q)
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.FileQuery", q)
 }
 
-// The TraverseTenant type is an adapter to allow the use of ordinary function as Traverser.
-type TraverseTenant func(context.Context, *ent.TenantQuery) error
+// The TraverseFile type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseFile func(context.Context, *ent.FileQuery) error
 
 // Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
-func (f TraverseTenant) Intercept(next ent.Querier) ent.Querier {
+func (f TraverseFile) Intercept(next ent.Querier) ent.Querier {
 	return next
 }
 
 // Traverse calls f(ctx, q).
-func (f TraverseTenant) Traverse(ctx context.Context, q ent.Query) error {
-	if q, ok := q.(*ent.TenantQuery); ok {
+func (f TraverseFile) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.FileQuery); ok {
 		return f(ctx, q)
 	}
-	return fmt.Errorf("unexpected query type %T. expect *ent.TenantQuery", q)
+	return fmt.Errorf("unexpected query type %T. expect *ent.FileQuery", q)
 }
 
 // NewQuery returns the generic Query interface for the given typed query.
 func NewQuery(q ent.Query) (Query, error) {
 	switch q := q.(type) {
-	case *ent.TenantQuery:
-		return &query[*ent.TenantQuery, predicate.Tenant, tenant.OrderOption]{typ: ent.TypeTenant, tq: q}, nil
+	case *ent.FileQuery:
+		return &query[*ent.FileQuery, predicate.File, file.OrderOption]{typ: ent.TypeFile, tq: q}, nil
 	default:
 		return nil, fmt.Errorf("unknown query type %T", q)
 	}

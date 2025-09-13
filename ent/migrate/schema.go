@@ -9,28 +9,41 @@ import (
 )
 
 var (
-	// DeletemeColumns holds the columns for the "deleteme" table.
-	DeletemeColumns = []*schema.Column{
+	// FilesColumns holds the columns for the "files" table.
+	FilesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
-		{Name: "user_id", Type: field.TypeUUID, Nullable: true},
-		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_by", Type: field.TypeUUID},
+		{Name: "original_name", Type: field.TypeString},
+		{Name: "storage_key", Type: field.TypeString},
+		{Name: "mime_type", Type: field.TypeString},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "path", Type: field.TypeString, Nullable: true},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
 	}
-	// DeletemeTable holds the schema information for the "deleteme" table.
-	DeletemeTable = &schema.Table{
-		Name:       "deleteme",
-		Columns:    DeletemeColumns,
-		PrimaryKey: []*schema.Column{DeletemeColumns[0]},
+	// FilesTable holds the schema information for the "files" table.
+	FilesTable = &schema.Table{
+		Name:       "files",
+		Columns:    FilesColumns,
+		PrimaryKey: []*schema.Column{FilesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "file_storage_key",
+				Unique:  true,
+				Columns: []*schema.Column{FilesColumns[5]},
+			},
+		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
-		DeletemeTable,
+		FilesTable,
 	}
 )
 
 func init() {
-	DeletemeTable.Annotation = &entsql.Annotation{
-		Table: "deleteme",
+	FilesTable.Annotation = &entsql.Annotation{
+		Table: "files",
 	}
 }

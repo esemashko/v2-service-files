@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Если нужно проверить изменения:
 1. Убедитесь, что код скомпилируется: `go build -o /tmp/test main.go`
-2. Проверьте логи в `/query_logs/` для отладки
+2. Проверьте логи в `/query_logs/` для отладки (логи не всегда доступны)
 3. Попросите разработчика перезапустить сервер, если требуется
 
 Если нужна генерация кода после изменения схем:
@@ -25,11 +25,41 @@ Multi-tenant B2B SaaS Helpdesk System с Clean Architecture.
 **Technology Stack:**
 - Go 1.25.0, GraphQL API (gqlgen), Ent ORM, PostgreSQL, Redis, i18n
 
+## Microservice Architecture
+
+### Service Isolation
+Приложение разбито на несколько изолированных контейнеров:
+- **Сервис авторизации**: Хранит пользователей, отделы, руководителей отделов
+- **Сервис хранения файлов**: Управляет загрузкой и хранением файлов
+- **Сервис тикетов**: Управляет тикетами и связанными сущностями
+
+**КРИТИЧЕСКИ ВАЖНО**:
+- Сервисы НЕ общаются напрямую между собой
+- Хранят только ссылки (UUID) на сущности из других сервисов
+- НЕ имеют доступа к EDGE ребрам между сервисами
+- Валидация и проверка связанных данных невозможна внутри сервиса
+
+### Federation Context Access
+Доступ к данным пользователя через расширение federation `"github.com/esemashko/v2-federation"`:
+
+```go
+import "github.com/esemashko/v2-federation"
+
+// Получение данных текущего пользователя из контекста
+userID := federation.GetUserID(ctx)                    // UUID пользователя
+userRole := federation.GetUserRole(ctx)                // Роль пользователя
+departmentIDs := federation.GetDepartmentIDs(ctx)      // Отделы пользователя
+managedDeptIDs := federation.GetManagedDepartmentIDs(ctx) // Управляемые отделы
+```
+
+### Важные ограничения:
+1. **Нет прямой валидации**: Невозможно проверить существование пользователя/отдела в момент создания тикета
+2. **Только через GraphQL Federation**: Полные данные доступны только через Apollo Router
+3. **Асинхронная согласованность**: Данные между сервисами могут быть временно несогласованны
+4. **Используйте context данные**: Всегда полагайтесь на данные из federation context
+
 **Essential Commands:**
 ```bash
-# Setup
-make dev-setup && make db-migrate && make db-seed
-
 # Development  
 make run-dev       # Run with debug
 make generate      # Regenerate after schema changes
@@ -51,19 +81,56 @@ make test-single TEST=TestName # Specific test
   utils.Logger.Debug("debug message")
   ```
 
-### 2. Transaction Management Architecture
+### 2. Database Client Architecture and Resolver Pattern
+
+**CRITICAL**: The application uses separate database clients for Query and Mutation operations for performance and caching optimization.
+
+#### Database Client Setup
+1. **Two separate clients**:
+    - `db.Query()` - Read-only client with Redis caching enabled
+    - `db.Mutation()` - Write client without caching but with cache invalidation hooks
+
+2. **Client selection happens in server.go**:
+   ```go
+   // server.go automatically selects the right client based on operation type
+   case ast.Query:
+       entClient = db.Query()      // Uses cached read client
+   case ast.Mutation, ast.Subscription:
+       entClient = db.Mutation()   // Uses write client with invalidation hooks
+   ```
+
+3. **Resolver must use getClient(ctx)**:
+   ```go
+   // In resolver.go
+   func (r *Resolver) getClient(ctx context.Context) *ent.Client {
+       if client := ent.FromContext(ctx); client != nil {
+           return client  // Returns the correct client from context
+       }
+       return r.client   // Fallback for tests
+   }
+   ```
+
+#### Important for ALL Resolvers:
+- **ALWAYS use `client := r.getClient(ctx)`** at the start of resolver methods
+- **NEVER use `r.client` directly** - it always points to Query client
+- This ensures:
+    - Mutations use the write client with cache invalidation
+    - Queries use the read client with caching
+    - Cache invalidation hooks work correctly
+
+### 3. Transaction Management Architecture
 
 **CRITICAL**: Transactions ONLY at resolver layer, NEVER in services.
 
 #### Rules:
 1. **Resolvers**: Handle ALL transaction lifecycle
-2. **Services**: NEVER create transactions - receive `*ent.Client` that may be transactional  
+2. **Services**: NEVER create transactions - receive `*ent.Client` that may be transactional
 3. **External operations**: Only in post-commit hooks
 
 2. **Service layer**: NEVER creates transactions
-   - Receives `*ent.Client` that may already be transactional
-   - Works with the client as-is (no `client.Tx()` calls)
-   - Can perform multiple operations using the same client
+    - Receives `*ent.Client` that may already be transactional
+    - Works with the client as-is (no `client.Tx()` calls)
+    - Can perform multiple operations using the same client
 
 3. **External operations** (Redis, notifications, etc.) must be in post-commit hooks:
    ```go
@@ -83,7 +150,8 @@ make test-single TEST=TestName # Specific test
 **✅ Resolver with transaction:**
 ```go
 func (r *mutationResolver) CreateEntity(ctx context.Context, input model.Input) (*model.Response, error) {
-    client := r.client
+    // ВАЖНО: Используем getClient для получения правильного клиента (mutation/query)
+    client := r.getClient(ctx)
     
     // Start transaction in resolver
     tx, err := client.Tx(ctx)
@@ -209,9 +277,9 @@ func (r *queryResolver) Chats(ctx context.Context, ...) (*ent.ChatConnection, er
 1. **CollectFields alone**: For simple queries without computed fields
 2. **Explicit WithXXX alone**: When you always need specific relations regardless of query
 3. **Combined approach**: When you have:
-   - Computed fields that require specific relations (e.g., `otherUser`, `unreadCount`)
-   - Complex resolvers that access nested data
-   - Need to prevent N+1 queries in field resolvers
+    - Computed fields that require specific relations (e.g., `otherUser`, `unreadCount`)
+    - Complex resolvers that access nested data
+    - Need to prevent N+1 queries in field resolvers
 
 #### Important Notes:
 - CollectFields optimizes based on the GraphQL query, but may not detect all dependencies for computed fields
@@ -247,13 +315,13 @@ func (r *queryResolver) Chats(ctx context.Context, ...) (*ent.ChatConnection, er
 #### Query Logging System
 - **Location**: `/querylog/` - система логирования GraphQL запросов
 - **Log Storage**: `/query_logs/YYYY-MM-DD/HH-MM-SS/OperationName_SessionID.json`
-- **Configuration**: 
-  - `ENABLE_QUERY_LOG=true` - включить логирование (только non-production)
+- **Configuration**:
+    - `ENABLE_QUERY_LOG=true` - включить логирование (только non-production)
 - **Log Contents**:
-  - GraphQL операция (имя, тип, raw query)
-  - Все SQL запросы с аргументами и временем выполнения
-  - Отладочные логи приложения (`debug_logs`) - все вызовы `utils.Logger` во время запроса
-  - Время выполнения и метрики
+    - GraphQL операция (имя, тип, raw query)
+    - Все SQL запросы с аргументами и временем выполнения
+    - Отладочные логи приложения (`debug_logs`) - все вызовы `utils.Logger` во время запроса
+    - Время выполнения и метрики
 - **Usage**: Анализ производительности, поиск N+1 проблем, отладка бизнес-логики
 - **Important**: `.env` должен загружаться ДО `utils.InitLogger()` в main.go
 - **Example log analysis**:
@@ -338,13 +406,13 @@ make test-integration
 
 ### Common Test Failure Patterns
 - **Privacy/Auth errors**: `authentication required: ent/privacy: deny rule`
-  - Solution: Use `privacy.WithSystemContext(ctx)` for seed data access
-- **Field update errors**: `field X is not allowed for update`  
-  - Solution: Add field to allowed fields map using field constants
+    - Solution: Use `privacy.WithSystemContext(ctx)` for seed data access
+- **Field update errors**: `field X is not allowed for update`
+    - Solution: Add field to allowed fields map using field constants
 - **Import conflicts**: `privacy redeclared as imported package`
-  - Solution: Use proper import aliases (`mainprivacy "main/privacy"`)
+    - Solution: Use proper import aliases (`mainprivacy "main/privacy"`)
 - **Build failures**: Missing dependencies or circular imports
-  - Solution: Check imports and run `make generate` if needed
+    - Solution: Check imports and run `make generate` if needed
 
 ### System Context in Tests
 Use `privacy.WithSystemContext(ctx)` when:
@@ -380,32 +448,32 @@ func (s *MySuite) TearDownSuite() {
 #### ✅ Правильно (TestHelper pattern - решает проблему)
 ```go
 type MySuite struct {
-    suite.Suite
-    helper *TestHelper  // Используем TestHelper
-    ctx    context.Context
+suite.Suite
+helper *TestHelper  // Используем TestHelper
+ctx    context.Context
 }
 
 func (s *MySuite) SetupSuite() {
-    s.helper = NewTestHelper(s.T())  // Создает транзакционный контекст
-    s.ctx = s.helper.GetContext()
+s.helper = NewTestHelper(s.T())  // Создает транзакционный контекст
+s.ctx = s.helper.GetContext()
 }
 
 func (s *MySuite) TearDownSuite() {
-    s.helper.Rollback()  // Откатывает транзакцию, не закрывает подключение
+s.helper.Rollback()  // Откатывает транзакцию, не закрывает подключение
 }
 
 func (s *MySuite) TestSomething() {
-    // Для обычных операций (включая системный контекст)
-    client := s.helper.GetClient()
-    systemCtx := privacy.WithSystemContext(s.ctx)
-    
-    // Системный контекст работает с тем же транзакционным клиентом
-    data, err := client.Entity.Query().All(systemCtx)
-    
-    // Для создания/обновления с системными правами
-    entity, err := client.Entity.Create().
-        SetName("test").
-        Save(systemCtx)
+// Для обычных операций (включая системный контекст)
+client := s.helper.GetClient()
+systemCtx := privacy.WithSystemContext(s.ctx)
+
+// Системный контекст работает с тем же транзакционным клиентом
+data, err := client.Entity.Query().All(systemCtx)
+
+// Для создания/обновления с системными правами
+entity, err := client.Entity.Create().
+SetName("test").
+Save(systemCtx)
 }
 ```
 
@@ -596,44 +664,44 @@ When implementing a new entity in the system, follow this sequence:
 package schema
 
 import (
-    "entgo.io/ent"
-    "entgo.io/ent/schema/field"
-    "entgo.io/ent/schema/edge"
-    localmixin "main/ent/mixin"
-    "main/privacy/entity"
+	"entgo.io/ent"
+	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/edge"
+	localmixin "main/ent/mixin"
+	"main/privacy/entity"
 )
 
 type Entity struct {
-    ent.Schema
+	ent.Schema
 }
 
 func (Entity) Mixin() []ent.Mixin {
-    return []ent.Mixin{
-        localmixin.TimeMixin{},
-        // localmixin.SoftDeleteMixin{}, // if soft delete needed
-    }
+	return []ent.Mixin{
+		localmixin.TimeMixin{},
+		// localmixin.SoftDeleteMixin{}, // if soft delete needed
+	}
 }
 
 func (Entity) Policy() ent.Policy {
-    return ent.Policy{
-        Query:    entity.QueryRule(),
-        Mutation: entity.MutationRule(),
-    }
+	return ent.Policy{
+		Query:    entity.QueryRule(),
+		Mutation: entity.MutationRule(),
+	}
 }
 
 func (Entity) Fields() []ent.Field {
-    // Define fields with GraphQL annotations
+	// Define fields with GraphQL annotations
 }
 
 func (Entity) Edges() []ent.Edge {
-    // Define relationships
+	// Define relationships
 }
 ```
 
 ### 2. Create Privacy Rules (`/privacy/entity/`)
 Create three files:
 - `permissions.go` - Permission check functions
-- `predicates.go` - Query predicates  
+- `predicates.go` - Query predicates
 - `privacy_rules.go` - Query/Mutation rules
 
 ### 3. Generate Code
@@ -658,7 +726,7 @@ extend type Mutation {
 ### 5. Create Service Layer (`/services/entity/`)
 ```go
 func (s *Service) CreateEntity(ctx context.Context, client *ent.Client, input *model.CreateEntityInput) (*ent.Entity, error) {
-    // Business logic with explicit client parameter
+// Business logic with explicit client parameter
 }
 ```
 
@@ -726,34 +794,34 @@ func (suite *MySuite) TestSomething() {
 **✅ Базовый шаблон для интеграционных тестов:**
 ```go
 func testEntityQueryRules(t *testing.T, helper *TestHelper, ctx context.Context) {
-    client := helper.GetClient()
-    testData := setupEntityTestData(t, client, ctx)  // Setup с проверкой ошибок
-    
-    testCases := []struct {
-        name          string
-        user          *ent.User
-        expectedCount int
-        description   string
-    }{
-        {
-            name:          "User can see their entities",
-            user:          testData.userA,
-            expectedCount: 2,
-            description:   "User should see entities they have access to",
-        },
-    }
-    
-    for _, tc := range testCases {
-        t.Run(tc.name, func(t *testing.T) {
-            userCtx := ctxkeys.SetUserID(ctx, tc.user.ID)
-            userCtx = ctxkeys.SetLocalUser(userCtx, tc.user)
-            ctxWithClient := ent.NewContext(userCtx, client)
-            
-            entities, err := client.Entity.Query().All(ctxWithClient)
-            require.NoError(t, err)
-            require.Equal(t, tc.expectedCount, len(entities), tc.description)
-        })
-    }
+client := helper.GetClient()
+testData := setupEntityTestData(t, client, ctx)  // Setup с проверкой ошибок
+
+testCases := []struct {
+name          string
+user          *ent.User
+expectedCount int
+description   string
+}{
+{
+name:          "User can see their entities",
+user:          testData.userA,
+expectedCount: 2,
+description:   "User should see entities they have access to",
+},
+}
+
+for _, tc := range testCases {
+t.Run(tc.name, func(t *testing.T) {
+userCtx := ctxkeys.SetUserID(ctx, tc.user.ID)
+userCtx = ctxkeys.SetLocalUser(userCtx, tc.user)
+ctxWithClient := ent.NewContext(userCtx, client)
+
+entities, err := client.Entity.Query().All(ctxWithClient)
+require.NoError(t, err)
+require.Equal(t, tc.expectedCount, len(entities), tc.description)
+})
+}
 }
 ```
 
@@ -1072,8 +1140,8 @@ The DataLoader middleware is already configured in `/server/server.go`:
 ```go
 // Apply DataLoader middleware using the dataloader package directly
 handler := dataloader.Middleware(client, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    graphqlServer := NewGraphQLServer(client, bundle)
-    graphqlServer.ServeHTTP(w, r)
+graphqlServer := NewGraphQLServer(client, bundle)
+graphqlServer.ServeHTTP(w, r)
 }))
 ```
 
@@ -1083,7 +1151,7 @@ handler := dataloader.Middleware(client, http.HandlerFunc(func(w http.ResponseWr
 ```go
 // Fetches last messages for multiple chats in one query
 func (r *MessageReader) GetLastMessages(ctx context.Context, chatIDs []uuid.UUID) ([]*ent.Message, []error) {
-    // Implementation that gets all messages and filters for latest per chat
+// Implementation that gets all messages and filters for latest per chat
 }
 ```
 
@@ -1186,17 +1254,17 @@ When loading data for counting or simple checks, select only necessary fields:
 ```go
 // Bad - loads full message content
 messages, err := r.client.Message.Query().
-    Where(message.HasChatWith(chat.IDIn(chatIDs...))).
-    All(ctx)
+Where(message.HasChatWith(chat.IDIn(chatIDs...))).
+All(ctx)
 
 // Good - loads only IDs for counting
 messages, err := r.client.Message.Query().
-    Where(message.HasChatWith(chat.IDIn(chatIDs...))).
-    Select(message.FieldID). // Only select ID
-    WithChat(func(q *ent.ChatQuery) {
-        q.Select(chat.FieldID) // Only need chat ID
-    }).
-    All(ctx)
+Where(message.HasChatWith(chat.IDIn(chatIDs...))).
+Select(message.FieldID). // Only select ID
+WithChat(func(q *ent.ChatQuery) {
+q.Select(chat.FieldID) // Only need chat ID
+}).
+All(ctx)
 ```
 
 This approach reduces SQL queries from ~100+ to ~12 for complex GraphQL operations.
@@ -1259,10 +1327,10 @@ cache.InvalidateCachedToken(ctx, sessionToken)
 **⚠️ ВАЖНО**: В мультитенантном мультиконтейнерном приложении ЗАПРЕЩЕНО использовать постоянный in-memory кэш!
 
 - **НИКОГДА не используйте**: `sync.Map`, глобальные переменные или любой другой in-memory кэш между запросами
-- **РАЗРЕШЕНО**: 
-  - Redis с изоляцией по tenant ID
-  - Context values для кэширования в рамках одного запроса
-  - Request-scoped переменные
+- **РАЗРЕШЕНО**:
+    - Redis с изоляцией по tenant ID
+    - Context values для кэширования в рамках одного запроса
+    - Request-scoped переменные
 
 **Причины**:
 1. Контейнеры могут обслуживать разных тенантов

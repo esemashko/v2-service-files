@@ -32,11 +32,11 @@ type Edge struct {
 }
 
 // Node implements Noder interface
-func (_m *Tenant) Node(ctx context.Context) (node *Node, err error) {
+func (_m *File) Node(ctx context.Context) (node *Node, err error) {
 	node = &Node{
 		ID:     _m.ID,
-		Type:   "Tenant",
-		Fields: make([]*Field, 3),
+		Type:   "File",
+		Fields: make([]*Field, 9),
 		Edges:  make([]*Edge, 0),
 	}
 	var buf []byte
@@ -56,12 +56,60 @@ func (_m *Tenant) Node(ctx context.Context) (node *Node, err error) {
 		Name:  "update_time",
 		Value: string(buf),
 	}
-	if buf, err = json.Marshal(_m.DeletedAt); err != nil {
+	if buf, err = json.Marshal(_m.OriginalName); err != nil {
 		return nil, err
 	}
 	node.Fields[2] = &Field{
-		Type:  "time.Time",
-		Name:  "deleted_at",
+		Type:  "string",
+		Name:  "original_name",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.StorageKey); err != nil {
+		return nil, err
+	}
+	node.Fields[3] = &Field{
+		Type:  "string",
+		Name:  "storage_key",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.MimeType); err != nil {
+		return nil, err
+	}
+	node.Fields[4] = &Field{
+		Type:  "string",
+		Name:  "mime_type",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Size); err != nil {
+		return nil, err
+	}
+	node.Fields[5] = &Field{
+		Type:  "int64",
+		Name:  "size",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Path); err != nil {
+		return nil, err
+	}
+	node.Fields[6] = &Field{
+		Type:  "string",
+		Name:  "path",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Description); err != nil {
+		return nil, err
+	}
+	node.Fields[7] = &Field{
+		Type:  "string",
+		Name:  "description",
+		Value: string(buf),
+	}
+	if buf, err = json.Marshal(_m.Metadata); err != nil {
+		return nil, err
+	}
+	node.Fields[8] = &Field{
+		Type:  "map[string]interface {}",
+		Name:  "metadata",
 		Value: string(buf),
 	}
 	return node, nil

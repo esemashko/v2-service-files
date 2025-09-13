@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"main/ent/tenant"
+	"main/ent/file"
 	"strconv"
 
 	"entgo.io/contrib/entgql"
@@ -99,20 +99,20 @@ func paginateLimit(first, last *int) int {
 	return limit
 }
 
-// TenantEdge is the edge representation of Tenant.
-type TenantEdge struct {
-	Node   *Tenant `json:"node"`
-	Cursor Cursor  `json:"cursor"`
+// FileEdge is the edge representation of File.
+type FileEdge struct {
+	Node   *File  `json:"node"`
+	Cursor Cursor `json:"cursor"`
 }
 
-// TenantConnection is the connection containing edges to Tenant.
-type TenantConnection struct {
-	Edges      []*TenantEdge `json:"edges"`
-	PageInfo   PageInfo      `json:"pageInfo"`
-	TotalCount int           `json:"totalCount"`
+// FileConnection is the connection containing edges to File.
+type FileConnection struct {
+	Edges      []*FileEdge `json:"edges"`
+	PageInfo   PageInfo    `json:"pageInfo"`
+	TotalCount int         `json:"totalCount"`
 }
 
-func (c *TenantConnection) build(nodes []*Tenant, pager *tenantPager, after *Cursor, first *int, before *Cursor, last *int) {
+func (c *FileConnection) build(nodes []*File, pager *filePager, after *Cursor, first *int, before *Cursor, last *int) {
 	c.PageInfo.HasNextPage = before != nil
 	c.PageInfo.HasPreviousPage = after != nil
 	if first != nil && *first+1 == len(nodes) {
@@ -122,21 +122,21 @@ func (c *TenantConnection) build(nodes []*Tenant, pager *tenantPager, after *Cur
 		c.PageInfo.HasPreviousPage = true
 		nodes = nodes[:len(nodes)-1]
 	}
-	var nodeAt func(int) *Tenant
+	var nodeAt func(int) *File
 	if last != nil {
 		n := len(nodes) - 1
-		nodeAt = func(i int) *Tenant {
+		nodeAt = func(i int) *File {
 			return nodes[n-i]
 		}
 	} else {
-		nodeAt = func(i int) *Tenant {
+		nodeAt = func(i int) *File {
 			return nodes[i]
 		}
 	}
-	c.Edges = make([]*TenantEdge, len(nodes))
+	c.Edges = make([]*FileEdge, len(nodes))
 	for i := range nodes {
 		node := nodeAt(i)
-		c.Edges[i] = &TenantEdge{
+		c.Edges[i] = &FileEdge{
 			Node:   node,
 			Cursor: pager.toCursor(node),
 		}
@@ -150,126 +150,162 @@ func (c *TenantConnection) build(nodes []*Tenant, pager *tenantPager, after *Cur
 	}
 }
 
-// TenantPaginateOption enables pagination customization.
-type TenantPaginateOption func(*tenantPager) error
+// FilePaginateOption enables pagination customization.
+type FilePaginateOption func(*filePager) error
 
-// WithTenantOrder configures pagination ordering.
-func WithTenantOrder(order *TenantOrder) TenantPaginateOption {
-	if order == nil {
-		order = DefaultTenantOrder
-	}
-	o := *order
-	return func(pager *tenantPager) error {
-		if err := o.Direction.Validate(); err != nil {
-			return err
+// WithFileOrder configures pagination ordering.
+func WithFileOrder(order []*FileOrder) FilePaginateOption {
+	return func(pager *filePager) error {
+		for _, o := range order {
+			if err := o.Direction.Validate(); err != nil {
+				return err
+			}
 		}
-		if o.Field == nil {
-			o.Field = DefaultTenantOrder.Field
-		}
-		pager.order = &o
+		pager.order = append(pager.order, order...)
 		return nil
 	}
 }
 
-// WithTenantFilter configures pagination filter.
-func WithTenantFilter(filter func(*TenantQuery) (*TenantQuery, error)) TenantPaginateOption {
-	return func(pager *tenantPager) error {
+// WithFileFilter configures pagination filter.
+func WithFileFilter(filter func(*FileQuery) (*FileQuery, error)) FilePaginateOption {
+	return func(pager *filePager) error {
 		if filter == nil {
-			return errors.New("TenantQuery filter cannot be nil")
+			return errors.New("FileQuery filter cannot be nil")
 		}
 		pager.filter = filter
 		return nil
 	}
 }
 
-type tenantPager struct {
+type filePager struct {
 	reverse bool
-	order   *TenantOrder
-	filter  func(*TenantQuery) (*TenantQuery, error)
+	order   []*FileOrder
+	filter  func(*FileQuery) (*FileQuery, error)
 }
 
-func newTenantPager(opts []TenantPaginateOption, reverse bool) (*tenantPager, error) {
-	pager := &tenantPager{reverse: reverse}
+func newFilePager(opts []FilePaginateOption, reverse bool) (*filePager, error) {
+	pager := &filePager{reverse: reverse}
 	for _, opt := range opts {
 		if err := opt(pager); err != nil {
 			return nil, err
 		}
 	}
-	if pager.order == nil {
-		pager.order = DefaultTenantOrder
+	for i, o := range pager.order {
+		if i > 0 && o.Field == pager.order[i-1].Field {
+			return nil, fmt.Errorf("duplicate order direction %q", o.Direction)
+		}
 	}
 	return pager, nil
 }
 
-func (p *tenantPager) applyFilter(query *TenantQuery) (*TenantQuery, error) {
+func (p *filePager) applyFilter(query *FileQuery) (*FileQuery, error) {
 	if p.filter != nil {
 		return p.filter(query)
 	}
 	return query, nil
 }
 
-func (p *tenantPager) toCursor(_m *Tenant) Cursor {
-	return p.order.Field.toCursor(_m)
+func (p *filePager) toCursor(_m *File) Cursor {
+	cs_ := make([]any, 0, len(p.order))
+	for _, o_ := range p.order {
+		cs_ = append(cs_, o_.Field.toCursor(_m).Value)
+	}
+	return Cursor{ID: _m.ID, Value: cs_}
 }
 
-func (p *tenantPager) applyCursors(query *TenantQuery, after, before *Cursor) (*TenantQuery, error) {
-	direction := p.order.Direction
+func (p *filePager) applyCursors(query *FileQuery, after, before *Cursor) (*FileQuery, error) {
+	idDirection := entgql.OrderDirectionAsc
 	if p.reverse {
-		direction = direction.Reverse()
+		idDirection = entgql.OrderDirectionDesc
 	}
-	for _, predicate := range entgql.CursorsPredicate(after, before, DefaultTenantOrder.Field.column, p.order.Field.column, direction) {
+	fields, directions := make([]string, 0, len(p.order)), make([]OrderDirection, 0, len(p.order))
+	for _, o := range p.order {
+		fields = append(fields, o.Field.column)
+		direction := o.Direction
+		if p.reverse {
+			direction = direction.Reverse()
+		}
+		directions = append(directions, direction)
+	}
+	predicates, err := entgql.MultiCursorsPredicate(after, before, &entgql.MultiCursorsOptions{
+		FieldID:     DefaultFileOrder.Field.column,
+		DirectionID: idDirection,
+		Fields:      fields,
+		Directions:  directions,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, predicate := range predicates {
 		query = query.Where(predicate)
 	}
 	return query, nil
 }
 
-func (p *tenantPager) applyOrder(query *TenantQuery) *TenantQuery {
-	direction := p.order.Direction
-	if p.reverse {
-		direction = direction.Reverse()
+func (p *filePager) applyOrder(query *FileQuery) *FileQuery {
+	var defaultOrdered bool
+	for _, o := range p.order {
+		direction := o.Direction
+		if p.reverse {
+			direction = direction.Reverse()
+		}
+		query = query.Order(o.Field.toTerm(direction.OrderTermOption()))
+		if o.Field.column == DefaultFileOrder.Field.column {
+			defaultOrdered = true
+		}
+		if len(query.ctx.Fields) > 0 {
+			query.ctx.AppendFieldOnce(o.Field.column)
+		}
 	}
-	query = query.Order(p.order.Field.toTerm(direction.OrderTermOption()))
-	if p.order.Field != DefaultTenantOrder.Field {
-		query = query.Order(DefaultTenantOrder.Field.toTerm(direction.OrderTermOption()))
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(p.order.Field.column)
+	if !defaultOrdered {
+		direction := entgql.OrderDirectionAsc
+		if p.reverse {
+			direction = direction.Reverse()
+		}
+		query = query.Order(DefaultFileOrder.Field.toTerm(direction.OrderTermOption()))
 	}
 	return query
 }
 
-func (p *tenantPager) orderExpr(query *TenantQuery) sql.Querier {
-	direction := p.order.Direction
-	if p.reverse {
-		direction = direction.Reverse()
-	}
+func (p *filePager) orderExpr(query *FileQuery) sql.Querier {
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(p.order.Field.column)
+		for _, o := range p.order {
+			query.ctx.AppendFieldOnce(o.Field.column)
+		}
 	}
 	return sql.ExprFunc(func(b *sql.Builder) {
-		b.Ident(p.order.Field.column).Pad().WriteString(string(direction))
-		if p.order.Field != DefaultTenantOrder.Field {
-			b.Comma().Ident(DefaultTenantOrder.Field.column).Pad().WriteString(string(direction))
+		for _, o := range p.order {
+			direction := o.Direction
+			if p.reverse {
+				direction = direction.Reverse()
+			}
+			b.Ident(o.Field.column).Pad().WriteString(string(direction))
+			b.Comma()
 		}
+		direction := entgql.OrderDirectionAsc
+		if p.reverse {
+			direction = direction.Reverse()
+		}
+		b.Ident(DefaultFileOrder.Field.column).Pad().WriteString(string(direction))
 	})
 }
 
-// Paginate executes the query and returns a relay based cursor connection to Tenant.
-func (_m *TenantQuery) Paginate(
+// Paginate executes the query and returns a relay based cursor connection to File.
+func (_m *FileQuery) Paginate(
 	ctx context.Context, after *Cursor, first *int,
-	before *Cursor, last *int, opts ...TenantPaginateOption,
-) (*TenantConnection, error) {
+	before *Cursor, last *int, opts ...FilePaginateOption,
+) (*FileConnection, error) {
 	if err := validateFirstLast(first, last); err != nil {
 		return nil, err
 	}
-	pager, err := newTenantPager(opts, last != nil)
+	pager, err := newFilePager(opts, last != nil)
 	if err != nil {
 		return nil, err
 	}
 	if _m, err = pager.applyFilter(_m); err != nil {
 		return nil, err
 	}
-	conn := &TenantConnection{Edges: []*TenantEdge{}}
+	conn := &FileConnection{Edges: []*FileEdge{}}
 	ignoredEdges := !hasCollectedField(ctx, edgesField)
 	if hasCollectedField(ctx, totalCountField) || hasCollectedField(ctx, pageInfoField) {
 		hasPagination := after != nil || first != nil || before != nil || last != nil
@@ -308,28 +344,28 @@ func (_m *TenantQuery) Paginate(
 }
 
 var (
-	// TenantOrderFieldCreateTime orders Tenant by create_time.
-	TenantOrderFieldCreateTime = &TenantOrderField{
-		Value: func(_m *Tenant) (ent.Value, error) {
+	// FileOrderFieldCreateTime orders File by create_time.
+	FileOrderFieldCreateTime = &FileOrderField{
+		Value: func(_m *File) (ent.Value, error) {
 			return _m.CreateTime, nil
 		},
-		column: tenant.FieldCreateTime,
-		toTerm: tenant.ByCreateTime,
-		toCursor: func(_m *Tenant) Cursor {
+		column: file.FieldCreateTime,
+		toTerm: file.ByCreateTime,
+		toCursor: func(_m *File) Cursor {
 			return Cursor{
 				ID:    _m.ID,
 				Value: _m.CreateTime,
 			}
 		},
 	}
-	// TenantOrderFieldUpdateTime orders Tenant by update_time.
-	TenantOrderFieldUpdateTime = &TenantOrderField{
-		Value: func(_m *Tenant) (ent.Value, error) {
+	// FileOrderFieldUpdateTime orders File by update_time.
+	FileOrderFieldUpdateTime = &FileOrderField{
+		Value: func(_m *File) (ent.Value, error) {
 			return _m.UpdateTime, nil
 		},
-		column: tenant.FieldUpdateTime,
-		toTerm: tenant.ByUpdateTime,
-		toCursor: func(_m *Tenant) Cursor {
+		column: file.FieldUpdateTime,
+		toTerm: file.ByUpdateTime,
+		toCursor: func(_m *File) Cursor {
 			return Cursor{
 				ID:    _m.ID,
 				Value: _m.UpdateTime,
@@ -339,75 +375,75 @@ var (
 )
 
 // String implement fmt.Stringer interface.
-func (f TenantOrderField) String() string {
+func (f FileOrderField) String() string {
 	var str string
 	switch f.column {
-	case TenantOrderFieldCreateTime.column:
+	case FileOrderFieldCreateTime.column:
 		str = "CREATE_TIME"
-	case TenantOrderFieldUpdateTime.column:
+	case FileOrderFieldUpdateTime.column:
 		str = "UPDATE_TIME"
 	}
 	return str
 }
 
 // MarshalGQL implements graphql.Marshaler interface.
-func (f TenantOrderField) MarshalGQL(w io.Writer) {
+func (f FileOrderField) MarshalGQL(w io.Writer) {
 	io.WriteString(w, strconv.Quote(f.String()))
 }
 
 // UnmarshalGQL implements graphql.Unmarshaler interface.
-func (f *TenantOrderField) UnmarshalGQL(v interface{}) error {
+func (f *FileOrderField) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("TenantOrderField %T must be a string", v)
+		return fmt.Errorf("FileOrderField %T must be a string", v)
 	}
 	switch str {
 	case "CREATE_TIME":
-		*f = *TenantOrderFieldCreateTime
+		*f = *FileOrderFieldCreateTime
 	case "UPDATE_TIME":
-		*f = *TenantOrderFieldUpdateTime
+		*f = *FileOrderFieldUpdateTime
 	default:
-		return fmt.Errorf("%s is not a valid TenantOrderField", str)
+		return fmt.Errorf("%s is not a valid FileOrderField", str)
 	}
 	return nil
 }
 
-// TenantOrderField defines the ordering field of Tenant.
-type TenantOrderField struct {
-	// Value extracts the ordering value from the given Tenant.
-	Value    func(*Tenant) (ent.Value, error)
+// FileOrderField defines the ordering field of File.
+type FileOrderField struct {
+	// Value extracts the ordering value from the given File.
+	Value    func(*File) (ent.Value, error)
 	column   string // field or computed.
-	toTerm   func(...sql.OrderTermOption) tenant.OrderOption
-	toCursor func(*Tenant) Cursor
+	toTerm   func(...sql.OrderTermOption) file.OrderOption
+	toCursor func(*File) Cursor
 }
 
-// TenantOrder defines the ordering of Tenant.
-type TenantOrder struct {
-	Direction OrderDirection    `json:"direction"`
-	Field     *TenantOrderField `json:"field"`
+// FileOrder defines the ordering of File.
+type FileOrder struct {
+	Direction OrderDirection  `json:"direction"`
+	Field     *FileOrderField `json:"field"`
 }
 
-// DefaultTenantOrder is the default ordering of Tenant.
-var DefaultTenantOrder = &TenantOrder{
+// DefaultFileOrder is the default ordering of File.
+var DefaultFileOrder = &FileOrder{
 	Direction: entgql.OrderDirectionAsc,
-	Field: &TenantOrderField{
-		Value: func(_m *Tenant) (ent.Value, error) {
+	Field: &FileOrderField{
+		Value: func(_m *File) (ent.Value, error) {
 			return _m.ID, nil
 		},
-		column: tenant.FieldID,
-		toTerm: tenant.ByID,
-		toCursor: func(_m *Tenant) Cursor {
+		column: file.FieldID,
+		toTerm: file.ByID,
+		toCursor: func(_m *File) Cursor {
 			return Cursor{ID: _m.ID}
 		},
 	},
 }
 
-// ToEdge converts Tenant into TenantEdge.
-func (_m *Tenant) ToEdge(order *TenantOrder) *TenantEdge {
+// ToEdge converts File into FileEdge.
+func (_m *File) ToEdge(order *FileOrder) *FileEdge {
 	if order == nil {
-		order = DefaultTenantOrder
+		order = DefaultFileOrder
 	}
-	return &TenantEdge{
+	return &FileEdge{
 		Node:   _m,
 		Cursor: order.Field.toCursor(_m),
 	}

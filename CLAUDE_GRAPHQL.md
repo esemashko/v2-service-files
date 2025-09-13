@@ -60,8 +60,8 @@ models:
 ```
 2) Реализовать batch‑ридер (одним запросом), который возвращает значения в исходном порядке.
 3) Резолвер поля:
-   - Если edge уже предзагружен — вернуть его.
-   - Иначе — вернуть из DataLoader: `return dataloader.GetXYZ(ctx, id)`.
+    - Если edge уже предзагружен — вернуть его.
+    - Иначе — вернуть из DataLoader: `return dataloader.GetXYZ(ctx, id)`.
 
 Примеры в проекте:
 - Permissions — `graph/dataloader/*` (`File.canDelete`, `Ticket.canDelete`).
@@ -296,31 +296,31 @@ cache.DeleteFromCache[*ent.Ticket](ctx, cache.TicketDetailsKey(ticketID))
 Системный подход (расширяемый на любые сущности):
 
 - Контекстный флаг «batch logging»
-  - Ввести вспомогательную функцию (примерная сигнатура): `ctx = ticketaudit.WithBatchLogging(ctx)`.
-  - Флаг читается в хуках: если включён — хук не вызывает `Save` лога сразу, а отправляет событие в накопитель (collector).
+    - Ввести вспомогательную функцию (примерная сигнатура): `ctx = ticketaudit.WithBatchLogging(ctx)`.
+    - Флаг читается в хуках: если включён — хук не вызывает `Save` лога сразу, а отправляет событие в накопитель (collector).
 
 - Накопитель событий (request‑scoped collector)
-  - Реализовать типизированный collector поверх request‑cache:
-    - `ticketaudit.AddCreate(ctx, payload)` — кладёт payload в коллекцию для текущего запроса.
-    - `ticketaudit.DrainCreates(ctx) []CreatePayload` — возвращает и очищает коллекцию.
-  - Payload содержит только необходимые поля для батч‑вставки (без повторных загрузок): `Action`, `TicketID`, `EntityID` (например, `SubscriptionID`), опц. `UserID`, `ActionDescription`, `NewValues`/`OldValues`, `RequestID`, `Metadata`.
+    - Реализовать типизированный collector поверх request‑cache:
+        - `ticketaudit.AddCreate(ctx, payload)` — кладёт payload в коллекцию для текущего запроса.
+        - `ticketaudit.DrainCreates(ctx) []CreatePayload` — возвращает и очищает коллекцию.
+    - Payload содержит только необходимые поля для батч‑вставки (без повторных загрузок): `Action`, `TicketID`, `EntityID` (например, `SubscriptionID`), опц. `UserID`, `ActionDescription`, `NewValues`/`OldValues`, `RequestID`, `Metadata`.
 
 - Изменения в хуках (пример на create)
-  - В хукe create:
-    - Не перечитывать сущность (использовать результат мутации).
-    - Если `batch logging` активен — сформировать payload и положить в collector; вернуть `next.Mutate` результат без сохранения аудита.
-    - Если `batch logging` выключен — сохранить лог как раньше (обратная совместимость для одиночных операций).
+    - В хукe create:
+        - Не перечитывать сущность (использовать результат мутации).
+        - Если `batch logging` активен — сформировать payload и положить в collector; вернуть `next.Mutate` результат без сохранения аудита.
+        - Если `batch logging` выключен — сохранить лог как раньше (обратная совместимость для одиночных операций).
 
 - Сохранение аудита после `CreateBulk`
-  - В сервисе/резолвере, где вызывается `CreateBulk(...)`:
-    - Перед вызовом включить `WithBatchLogging(ctx)`.
-    - После успешного `CreateBulk` вызвать `payloads := ticketaudit.DrainCreates(ctx)` и выполнить один `TicketSubscriptionAuditLog.CreateBulk` c генерацией билдеров из payload’ов.
-    - Для обхода privacy-директив использовать `privacy.WithSystemContext(ctx)` при сохранении логов (как в существующих сервисах аудита).
-    - При необходимости зарегистрировать сохранение в `tx.OnCommit(...)`, если сам `CreateBulk` выполнялся внутри транзакции.
+    - В сервисе/резолвере, где вызывается `CreateBulk(...)`:
+        - Перед вызовом включить `WithBatchLogging(ctx)`.
+        - После успешного `CreateBulk` вызвать `payloads := ticketaudit.DrainCreates(ctx)` и выполнить один `TicketSubscriptionAuditLog.CreateBulk` c генерацией билдеров из payload’ов.
+        - Для обхода privacy-директив использовать `privacy.WithSystemContext(ctx)` при сохранении логов (как в существующих сервисах аудита).
+        - При необходимости зарегистрировать сохранение в `tx.OnCommit(...)`, если сам `CreateBulk` выполнялся внутри транзакции.
 
 - Минимизация запросов в батч‑режиме
-  - Не загружать сущность повторно в хукe (убрать дополнительный SELECT).
-  - В payload класть ID сущностей; для `CreateBulk` логов достаточно `SetTicketID(...)`, `SetSubscriptionID(...)`, `SetUserID(...)` и т.п., без предзагрузок.
+    - Не загружать сущность повторно в хукe (убрать дополнительный SELECT).
+    - В payload класть ID сущностей; для `CreateBulk` логов достаточно `SetTicketID(...)`, `SetSubscriptionID(...)`, `SetUserID(...)` и т.п., без предзагрузок.
 
 - Пример (схема действий, псевдокод)
 
@@ -356,11 +356,11 @@ if len(payloads) > 0 {
 ```
 
 - Расширяемость
-  - Шаблон одинаков для других сущностей (комментарии, файлы, оценки, прочтения):
-    - Контекстный флаг `WithBatchLogging` (общий пакет аудита или по доменам).
-    - Collector на request‑cache для каждого типа события (`Create/Update/Delete`).
-    - Модификация соответствующих хуков (`With...AuditLog`) с режимом enqueue‑vs‑save.
-    - Единая точка `CreateBulk` в сервисе, где выполняется `Drain + CreateBulk` логов.
+    - Шаблон одинаков для других сущностей (комментарии, файлы, оценки, прочтения):
+        - Контекстный флаг `WithBatchLogging` (общий пакет аудита или по доменам).
+        - Collector на request‑cache для каждого типа события (`Create/Update/Delete`).
+        - Модификация соответствующих хуков (`With...AuditLog`) с режимом enqueue‑vs‑save.
+        - Единая точка `CreateBulk` в сервисе, где выполняется `Drain + CreateBulk` логов.
 
 Результат: одна вставка в основную таблицу (`CreateBulk`) и одна вставка логов (`CreateBulk`), без N+1 и без изменения семантики «одна запись аудита на одну сущность».
 

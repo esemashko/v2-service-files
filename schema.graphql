@@ -1,3 +1,11 @@
+# Requires authenticated user
+directive @auth on FIELD_DEFINITION
+# Requires admin role
+directive @admin on FIELD_DEFINITION
+# Requires member role (member or admin)
+directive @member on FIELD_DEFINITION
+
+
 directive @goField(forceResolver: Boolean, name: String, omittable: Boolean) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 directive @goModel(model: String, models: [String!], forceGenerate: Boolean) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
 """
@@ -290,7 +298,7 @@ enum OrderDirection {
 Information about pagination in a connection.
 https://relay.dev/graphql/connections.htm#sec-undefined.PageInfo
 """
-type PageInfo {
+type PageInfo @shareable {
   """
   When paginating forwards, are there more items?
   """
@@ -308,25 +316,7 @@ type PageInfo {
   """
   endCursor: Cursor
 }
-type Query {
-  """
-  Fetches an object given its ID.
-  """
-  node(
-    """
-    ID of the object.
-    """
-    id: ID!
-  ): Node
-  """
-  Lookup nodes by a list of IDs.
-  """
-  nodes(
-    """
-    The list of node IDs.
-    """
-    ids: [ID!]!
-  ): [Node]!
+type Query @shareable {
   files(
     """
     Returns the elements in the list that come after the specified cursor.
@@ -400,3 +390,26 @@ input UpdateFileInput {
   metadata: Map
   clearMetadata: Boolean
 }
+
+
+scalar UUID
+
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.5", import: ["@key", "@shareable", "@provides", "@external", "@tag", "@override", "@inaccessible", "@requires"])
+
+type User @key(fields: "id") {
+    id: ID!
+}
+
+extend type File @key(fields: "id") {
+    createdBy: User!
+}
+
+
+extend type Mutation {
+    uploadFile(input: CreateFileInput!): File! @auth
+    updateFile(id: UUID!, input: UpdateFileInput!): File! @auth
+    deleteFile(id: UUID!): Boolean! @auth
+}
+
+

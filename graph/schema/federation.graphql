@@ -3,4 +3,10 @@ scalar UUID
 extend schema
   @link(url: "https://specs.apollo.dev/federation/v2.5", import: ["@key", "@shareable", "@provides", "@external", "@tag", "@override", "@inaccessible", "@requires"])
 
+type User @key(fields: "id") {
+    id: ID!
+}
 
+extend type File @key(fields: "id") {
+    createdBy: User!
+}

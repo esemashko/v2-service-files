@@ -3,6 +3,7 @@ package security
 import (
 	"context"
 	"errors"
+	"main/types"
 
 	federation "github.com/esemashko/v2-federation"
 )
@@ -20,4 +21,42 @@ func ValidateAuthAccess(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// ValidateAdminAccess проверяет пользователя на администратора
+func ValidateAdminAccess(ctx context.Context) error {
+	err := ValidateAuthAccess(ctx)
+	if err != nil {
+		return err
+	}
+
+	userRole := federation.GetUserRole(ctx)
+	if userRole == "" {
+		return errors.New("you are not authenticated")
+	}
+
+	if types.IsRoleHigherOrEqual(userRole, types.RoleAdmin) {
+		return nil
+	}
+
+	return errors.New("you are not authenticated")
+}
+
+// ValidateMemberAccess проверяет пользователя на роль сотрудника
+func ValidateMemberAccess(ctx context.Context) error {
+	err := ValidateAuthAccess(ctx)
+	if err != nil {
+		return err
+	}
+
+	userRole := federation.GetUserRole(ctx)
+	if userRole == "" {
+		return errors.New("you are not authenticated")
+	}
+
+	if types.IsRoleHigherOrEqual(userRole, types.RoleMember) {
+		return nil
+	}
+
+	return errors.New("you are not authenticated")
 }

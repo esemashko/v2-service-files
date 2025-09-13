@@ -5,7 +5,7 @@ package ent
 import (
 	"context"
 	"fmt"
-	"main/ent/tenant"
+	"main/ent/file"
 
 	"entgo.io/contrib/entgql"
 	"github.com/99designs/gqlgen/graphql"
@@ -19,10 +19,10 @@ type Noder interface {
 	IsNode()
 }
 
-var tenantImplementors = []string{"Tenant", "Node"}
+var fileImplementors = []string{"File", "Node"}
 
 // IsNode implements the Node interface check for GQLGen.
-func (*Tenant) IsNode() {}
+func (*File) IsNode() {}
 
 var errNodeInvalidID = &NotFoundError{"node"}
 
@@ -82,11 +82,11 @@ func (c *Client) Noder(ctx context.Context, id uuid.UUID, opts ...NodeOption) (_
 
 func (c *Client) noder(ctx context.Context, table string, id uuid.UUID) (Noder, error) {
 	switch table {
-	case tenant.Table:
-		query := c.Tenant.Query().
-			Where(tenant.ID(id))
+	case file.Table:
+		query := c.File.Query().
+			Where(file.ID(id))
 		if fc := graphql.GetFieldContext(ctx); fc != nil {
-			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, tenantImplementors...); err != nil {
+			if err := query.collectField(ctx, true, graphql.GetOperationContext(ctx), fc.Field, nil, fileImplementors...); err != nil {
 				return nil, err
 			}
 		}
@@ -164,10 +164,10 @@ func (c *Client) noders(ctx context.Context, table string, ids []uuid.UUID) ([]N
 		idmap[id] = append(idmap[id], &noders[i])
 	}
 	switch table {
-	case tenant.Table:
-		query := c.Tenant.Query().
-			Where(tenant.IDIn(ids...))
-		query, err := query.CollectFields(ctx, tenantImplementors...)
+	case file.Table:
+		query := c.File.Query().
+			Where(file.IDIn(ids...))
+		query, err := query.CollectFields(ctx, fileImplementors...)
 		if err != nil {
 			return nil, err
 		}

@@ -6,5 +6,5 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// Tenant is the predicate function for tenant builders.
-type Tenant func(*sql.Selector)
+// File is the predicate function for file builders.
+type File func(*sql.Selector)

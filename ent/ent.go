@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"main/ent/tenant"
+	"main/ent/file"
 	"reflect"
 	"sync"
 
@@ -73,7 +73,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			tenant.Table: tenant.ValidColumn,
+			file.Table: file.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

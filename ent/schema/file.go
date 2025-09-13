@@ -2,15 +2,12 @@ package schema
 
 import (
 	localmixin "main/ent/schema/mixin"
-	"main/hooks"
-	"main/privacy/file"
 
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/privacy"
 	"entgo.io/ent/schema"
-	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
@@ -33,10 +30,10 @@ func (File) Mixin() []ent.Mixin {
 func (File) Policy() ent.Policy {
 	return privacy.Policy{
 		Query: privacy.QueryPolicy{
-			file.QueryRule(),
+			//file.QueryRule(),
 		},
 		Mutation: privacy.MutationPolicy{
-			file.MutationRule(),
+			//file.MutationRule(),
 		},
 	}
 }
@@ -45,7 +42,7 @@ func (File) Policy() ent.Policy {
 func (File) Hooks() []ent.Hook {
 	return []ent.Hook{
 		// Автоматически удаляет файл из S3 при удалении записи из БД
-		hooks.WithFileS3Deletion(),
+		//hooks.WithFileS3Deletion(),
 	}
 }
 
@@ -53,6 +50,11 @@ func (File) Fields() []ent.Field {
 	return []ent.Field{
 		field.UUID("id", uuid.UUID{}).
 			Default(uuid.New),
+		field.UUID("created_by", uuid.UUID{}).
+			Immutable().
+			Annotations(
+				entgql.Skip(),
+			),
 		field.String("original_name").
 			NotEmpty().
 			Comment("Оригинальное имя загруженного файла"),
@@ -78,25 +80,7 @@ func (File) Fields() []ent.Field {
 }
 
 func (File) Edges() []ent.Edge {
-	return []ent.Edge{
-		// Пользователь, загрузивший файл
-		edge.To("uploader", User.Type).
-			Unique().
-			Required(),
-
-		// Связь с тикетами через промежуточную таблицу
-		edge.From("ticket_files", TicketFile.Type).
-			Ref("file"),
-
-		// Связь с комментариями через промежуточную таблицу
-		edge.From("comment_files", TicketCommentFile.Type).
-			Ref("file"),
-
-		// Связь с сообщениями, где используется файл
-		edge.From("messages", Message.Type).
-			Ref("files").
-			Comment("Messages that have this file attached"),
-	}
+	return []ent.Edge{}
 }
 
 func (File) Indexes() []ent.Index {
