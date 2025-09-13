@@ -34,6 +34,7 @@ type FileMutation struct {
 	op            Op
 	typ           string
 	id            *uuid.UUID
+	tenant_id     *uuid.UUID
 	create_time   *time.Time
 	update_time   *time.Time
 	created_by    *uuid.UUID
@@ -153,6 +154,42 @@ func (m *FileMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *FileMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *FileMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the File entity.
+// If the File object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *FileMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *FileMutation) ResetTenantID() {
+	m.tenant_id = nil
 }
 
 // SetCreateTime sets the "create_time" field.
@@ -608,7 +645,10 @@ func (m *FileMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *FileMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 11)
+	if m.tenant_id != nil {
+		fields = append(fields, file.FieldTenantID)
+	}
 	if m.create_time != nil {
 		fields = append(fields, file.FieldCreateTime)
 	}
@@ -647,6 +687,8 @@ func (m *FileMutation) Fields() []string {
 // schema.
 func (m *FileMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case file.FieldTenantID:
+		return m.TenantID()
 	case file.FieldCreateTime:
 		return m.CreateTime()
 	case file.FieldUpdateTime:
@@ -676,6 +718,8 @@ func (m *FileMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *FileMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case file.FieldTenantID:
+		return m.OldTenantID(ctx)
 	case file.FieldCreateTime:
 		return m.OldCreateTime(ctx)
 	case file.FieldUpdateTime:
@@ -705,6 +749,13 @@ func (m *FileMutation) OldField(ctx context.Context, name string) (ent.Value, er
 // type.
 func (m *FileMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case file.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
 	case file.FieldCreateTime:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -860,6 +911,9 @@ func (m *FileMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *FileMutation) ResetField(name string) error {
 	switch name {
+	case file.FieldTenantID:
+		m.ResetTenantID()
+		return nil
 	case file.FieldCreateTime:
 		m.ResetCreateTime()
 		return nil

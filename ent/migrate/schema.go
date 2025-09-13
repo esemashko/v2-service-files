@@ -12,6 +12,7 @@ var (
 	// FilesColumns holds the columns for the "files" table.
 	FilesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
 		{Name: "created_by", Type: field.TypeUUID},
@@ -32,7 +33,7 @@ var (
 			{
 				Name:    "file_storage_key",
 				Unique:  true,
-				Columns: []*schema.Column{FilesColumns[5]},
+				Columns: []*schema.Column{FilesColumns[6]},
 			},
 		},
 	}

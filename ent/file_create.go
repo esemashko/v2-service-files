@@ -21,6 +21,12 @@ type FileCreate struct {
 	hooks    []Hook
 }
 
+// SetTenantID sets the "tenant_id" field.
+func (_c *FileCreate) SetTenantID(v uuid.UUID) *FileCreate {
+	_c.mutation.SetTenantID(v)
+	return _c
+}
+
 // SetCreateTime sets the "create_time" field.
 func (_c *FileCreate) SetCreateTime(v time.Time) *FileCreate {
 	_c.mutation.SetCreateTime(v)
@@ -190,6 +196,9 @@ func (_c *FileCreate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *FileCreate) check() error {
+	if _, ok := _c.mutation.TenantID(); !ok {
+		return &ValidationError{Name: "tenant_id", err: errors.New(`ent: missing required field "File.tenant_id"`)}
+	}
 	if _, ok := _c.mutation.CreateTime(); !ok {
 		return &ValidationError{Name: "create_time", err: errors.New(`ent: missing required field "File.create_time"`)}
 	}
@@ -265,6 +274,10 @@ func (_c *FileCreate) createSpec() (*File, *sqlgraph.CreateSpec) {
 	if id, ok := _c.mutation.ID(); ok {
 		_node.ID = id
 		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.TenantID(); ok {
+		_spec.SetField(file.FieldTenantID, field.TypeUUID, value)
+		_node.TenantID = value
 	}
 	if value, ok := _c.mutation.CreateTime(); ok {
 		_spec.SetField(file.FieldCreateTime, field.TypeTime, value)

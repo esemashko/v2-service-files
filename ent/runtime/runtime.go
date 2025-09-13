@@ -28,18 +28,23 @@ func init() {
 			return next.Mutate(ctx, m)
 		})
 	}
-	fileMixinInters1 := fileMixin[1].Interceptors()
-	file.Interceptors[0] = fileMixinInters1[0]
-	fileMixinFields0 := fileMixin[0].Fields()
-	_ = fileMixinFields0
+	fileMixinHooks0 := fileMixin[0].Hooks()
+
+	file.Hooks[1] = fileMixinHooks0[0]
+	fileMixinInters0 := fileMixin[0].Interceptors()
+	fileMixinInters2 := fileMixin[2].Interceptors()
+	file.Interceptors[0] = fileMixinInters0[0]
+	file.Interceptors[1] = fileMixinInters2[0]
+	fileMixinFields1 := fileMixin[1].Fields()
+	_ = fileMixinFields1
 	fileFields := schema.File{}.Fields()
 	_ = fileFields
 	// fileDescCreateTime is the schema descriptor for create_time field.
-	fileDescCreateTime := fileMixinFields0[0].Descriptor()
+	fileDescCreateTime := fileMixinFields1[0].Descriptor()
 	// file.DefaultCreateTime holds the default value on creation for the create_time field.
 	file.DefaultCreateTime = fileDescCreateTime.Default.(func() time.Time)
 	// fileDescUpdateTime is the schema descriptor for update_time field.
-	fileDescUpdateTime := fileMixinFields0[1].Descriptor()
+	fileDescUpdateTime := fileMixinFields1[1].Descriptor()
 	// file.DefaultUpdateTime holds the default value on creation for the update_time field.
 	file.DefaultUpdateTime = fileDescUpdateTime.Default.(func() time.Time)
 	// file.UpdateDefaultUpdateTime holds the default value on update for the update_time field.

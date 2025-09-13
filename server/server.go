@@ -21,6 +21,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 )
 
@@ -51,6 +52,19 @@ func NewGraphQLServer(db *database.Client) *handler.Server {
 	srv.AddTransport(transport.MultipartForm{
 		MaxMemory:     32 << 20,  // 32MB
 		MaxUploadSize: 100 << 20, // 100MB
+	})
+
+	// Добавляем WebSocket транспорт для подписок
+	srv.AddTransport(&transport.Websocket{
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				// В production проверяйте origin более строго
+				return true
+			},
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		},
+		KeepAlivePingInterval: 10,
 	})
 
 	// Выбор клиента по типу операции и инъекция в контекст

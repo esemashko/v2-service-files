@@ -21,6 +21,7 @@ type File struct {
 // Mixin of the File
 func (File) Mixin() []ent.Mixin {
 	return []ent.Mixin{
+		localmixin.TenantMixin{},
 		localmixin.TimeMixin{},
 		localmixin.LimitMixin{},
 	}
