@@ -1,5 +1,12 @@
 {
   "error": {
+    "file": {
+      "get_failed": "Не удалось получить файл",
+      "no_file": "Файл не предоставлен",
+      "not_found": "Файл не найден",
+      "too_large": "Файл слишком большой",
+      "update_failed": "Не удалось обновить файл"
+    },
     "internal": {
       "redis_subscription_failed": "Не удалось подписаться на канал Redis",
       "redis_unavailable": "Сервис Redis недоступен"
@@ -9,10 +16,24 @@
       "not_implemented": "Функция не реализована"
     },
     "tenant": {},
-    "transaction": {},
+    "transaction": {
+      "commit_failed": "Не удалось завершить транзакцию",
+      "failed": "Транзакция не удалась"
+    },
     "unauthorized": "Неавторизованный доступ"
   },
   "success": {
+    "file": {
+      "batch_download_url_generated": "URL для пакетной загрузки успешно создан",
+      "deleted": "Файл успешно удален",
+      "download_url_generated": "URL для загрузки успешно создан",
+      "found": "Файл найден",
+      "updated": "Файл успешно обновлен",
+      "uploaded": "Файл успешно загружен"
+    },
+    "files": {
+      "found": "Файлы найдены"
+    },
     "subdomain": {},
     "tenant": {}
   }

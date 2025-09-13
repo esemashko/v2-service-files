@@ -1,5 +1,12 @@
 {
   "error": {
+    "file": {
+      "get_failed": "Failed to retrieve file",
+      "no_file": "No file provided",
+      "not_found": "File not found",
+      "too_large": "File is too large",
+      "update_failed": "Failed to update file"
+    },
     "internal": {
       "redis_subscription_failed": "Failed to subscribe to Redis channel",
       "redis_unavailable": "Redis service is unavailable"
@@ -9,10 +16,24 @@
       "not_implemented": "Feature not implemented"
     },
     "tenant": {},
-    "transaction": {},
+    "transaction": {
+      "commit_failed": "Failed to commit transaction",
+      "failed": "Transaction failed"
+    },
     "unauthorized": "Unauthorized access"
   },
   "success": {
+    "file": {
+      "batch_download_url_generated": "Batch download URL generated successfully",
+      "deleted": "File deleted successfully",
+      "download_url_generated": "Download URL generated successfully",
+      "found": "File found",
+      "updated": "File updated successfully",
+      "uploaded": "File uploaded successfully"
+    },
+    "files": {
+      "found": "Files found"
+    },
     "subdomain": {},
     "tenant": {}
   }

@@ -448,32 +448,32 @@ func (s *MySuite) TearDownSuite() {
 #### ✅ Правильно (TestHelper pattern - решает проблему)
 ```go
 type MySuite struct {
-suite.Suite
-helper *TestHelper  // Используем TestHelper
-ctx    context.Context
+    suite.Suite
+    helper *TestHelper  // Используем TestHelper
+    ctx    context.Context
 }
 
 func (s *MySuite) SetupSuite() {
-s.helper = NewTestHelper(s.T())  // Создает транзакционный контекст
-s.ctx = s.helper.GetContext()
+    s.helper = NewTestHelper(s.T())  // Создает транзакционный контекст
+    s.ctx = s.helper.GetContext()
 }
 
 func (s *MySuite) TearDownSuite() {
-s.helper.Rollback()  // Откатывает транзакцию, не закрывает подключение
+    s.helper.Rollback()  // Откатывает транзакцию, не закрывает подключение
 }
 
 func (s *MySuite) TestSomething() {
-// Для обычных операций (включая системный контекст)
-client := s.helper.GetClient()
-systemCtx := privacy.WithSystemContext(s.ctx)
-
-// Системный контекст работает с тем же транзакционным клиентом
-data, err := client.Entity.Query().All(systemCtx)
-
-// Для создания/обновления с системными правами
-entity, err := client.Entity.Create().
-SetName("test").
-Save(systemCtx)
+    // Для обычных операций (включая системный контекст)
+    client := s.helper.GetClient()
+    systemCtx := privacy.WithSystemContext(s.ctx)
+    
+    // Системный контекст работает с тем же транзакционным клиентом
+    data, err := client.Entity.Query().All(systemCtx)
+    
+    // Для создания/обновления с системными правами
+    entity, err := client.Entity.Create().
+        SetName("test").
+        Save(systemCtx)
 }
 ```
 
@@ -543,7 +543,7 @@ This service supports Apollo Federation v2 with the following setup:
 - **`graph/schema/federation.graphql`**: Federation schema with directives
   ```graphql
   extend type User @key(fields: "id")
-  extend type UserDepartment @key(fields: "id")
+  extend type Department @key(fields: "id")
   ```
 
 #### 2. Manual Implementation Required (entgql v0.6.0 limitations)
@@ -554,7 +554,7 @@ Due to current entgql limitations, the following must be implemented manually:
 ```go
 // Code generated manually for federation support. DO NOT DELETE.
 func (*User) IsEntity() {}
-func (*UserDepartment) IsEntity() {}
+func (*Department) IsEntity() {}
 ```
 
 ##### b. Entity Resolvers (`graph/resolvers/entity.resolvers.go`)
@@ -637,7 +637,7 @@ go generate ./...
 ### Important Notes
 
 - **UUID Type**: All IDs use UUID type with custom marshaling in `ent/schema/uuidgql/uuidgql.go`
-- **No Model Annotation Required**: Don't add User/UserDepartment to models in gqlgen.yml
+- **No Model Annotation Required**: Don't add User/Department to models in gqlgen.yml
 - **DataLoader is Critical**: Always use DataLoader in entity resolvers to prevent N+1 queries
 - **Manual Files**: Don't delete `gql_entity.go` and `entity.resolvers.go` - they're manually maintained
 
@@ -664,37 +664,37 @@ When implementing a new entity in the system, follow this sequence:
 package schema
 
 import (
-	"entgo.io/ent"
-	"entgo.io/ent/schema/field"
-	"entgo.io/ent/schema/edge"
-	localmixin "main/ent/mixin"
-	"main/privacy/entity"
+    "entgo.io/ent"
+    "entgo.io/ent/schema/field"
+    "entgo.io/ent/schema/edge"
+    localmixin "main/ent/mixin"
+    "main/privacy/entity"
 )
 
 type Entity struct {
-	ent.Schema
+    ent.Schema
 }
 
 func (Entity) Mixin() []ent.Mixin {
-	return []ent.Mixin{
-		localmixin.TimeMixin{},
-		// localmixin.SoftDeleteMixin{}, // if soft delete needed
-	}
+    return []ent.Mixin{
+        localmixin.TimeMixin{},
+        // localmixin.SoftDeleteMixin{}, // if soft delete needed
+    }
 }
 
 func (Entity) Policy() ent.Policy {
-	return ent.Policy{
-		Query:    entity.QueryRule(),
-		Mutation: entity.MutationRule(),
-	}
+    return ent.Policy{
+        Query:    entity.QueryRule(),
+        Mutation: entity.MutationRule(),
+    }
 }
 
 func (Entity) Fields() []ent.Field {
-	// Define fields with GraphQL annotations
+    // Define fields with GraphQL annotations
 }
 
 func (Entity) Edges() []ent.Edge {
-	// Define relationships
+    // Define relationships
 }
 ```
 
@@ -726,7 +726,7 @@ extend type Mutation {
 ### 5. Create Service Layer (`/services/entity/`)
 ```go
 func (s *Service) CreateEntity(ctx context.Context, client *ent.Client, input *model.CreateEntityInput) (*ent.Entity, error) {
-// Business logic with explicit client parameter
+    // Business logic with explicit client parameter
 }
 ```
 
@@ -794,34 +794,34 @@ func (suite *MySuite) TestSomething() {
 **✅ Базовый шаблон для интеграционных тестов:**
 ```go
 func testEntityQueryRules(t *testing.T, helper *TestHelper, ctx context.Context) {
-client := helper.GetClient()
-testData := setupEntityTestData(t, client, ctx)  // Setup с проверкой ошибок
-
-testCases := []struct {
-name          string
-user          *ent.User
-expectedCount int
-description   string
-}{
-{
-name:          "User can see their entities",
-user:          testData.userA,
-expectedCount: 2,
-description:   "User should see entities they have access to",
-},
-}
-
-for _, tc := range testCases {
-t.Run(tc.name, func(t *testing.T) {
-userCtx := ctxkeys.SetUserID(ctx, tc.user.ID)
-userCtx = ctxkeys.SetLocalUser(userCtx, tc.user)
-ctxWithClient := ent.NewContext(userCtx, client)
-
-entities, err := client.Entity.Query().All(ctxWithClient)
-require.NoError(t, err)
-require.Equal(t, tc.expectedCount, len(entities), tc.description)
-})
-}
+    client := helper.GetClient()
+    testData := setupEntityTestData(t, client, ctx)  // Setup с проверкой ошибок
+    
+    testCases := []struct {
+        name          string
+        user          *ent.User
+        expectedCount int
+        description   string
+    }{
+        {
+            name:          "User can see their entities",
+            user:          testData.userA,
+            expectedCount: 2,
+            description:   "User should see entities they have access to",
+        },
+    }
+    
+    for _, tc := range testCases {
+        t.Run(tc.name, func(t *testing.T) {
+            userCtx := ctxkeys.SetUserID(ctx, tc.user.ID)
+            userCtx = ctxkeys.SetLocalUser(userCtx, tc.user)
+            ctxWithClient := ent.NewContext(userCtx, client)
+            
+            entities, err := client.Entity.Query().All(ctxWithClient)
+            require.NoError(t, err)
+            require.Equal(t, tc.expectedCount, len(entities), tc.description)
+        })
+    }
 }
 ```
 
@@ -1140,8 +1140,8 @@ The DataLoader middleware is already configured in `/server/server.go`:
 ```go
 // Apply DataLoader middleware using the dataloader package directly
 handler := dataloader.Middleware(client, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-graphqlServer := NewGraphQLServer(client, bundle)
-graphqlServer.ServeHTTP(w, r)
+    graphqlServer := NewGraphQLServer(client, bundle)
+    graphqlServer.ServeHTTP(w, r)
 }))
 ```
 
@@ -1151,7 +1151,7 @@ graphqlServer.ServeHTTP(w, r)
 ```go
 // Fetches last messages for multiple chats in one query
 func (r *MessageReader) GetLastMessages(ctx context.Context, chatIDs []uuid.UUID) ([]*ent.Message, []error) {
-// Implementation that gets all messages and filters for latest per chat
+    // Implementation that gets all messages and filters for latest per chat
 }
 ```
 
@@ -1254,17 +1254,17 @@ When loading data for counting or simple checks, select only necessary fields:
 ```go
 // Bad - loads full message content
 messages, err := r.client.Message.Query().
-Where(message.HasChatWith(chat.IDIn(chatIDs...))).
-All(ctx)
+    Where(message.HasChatWith(chat.IDIn(chatIDs...))).
+    All(ctx)
 
 // Good - loads only IDs for counting
 messages, err := r.client.Message.Query().
-Where(message.HasChatWith(chat.IDIn(chatIDs...))).
-Select(message.FieldID). // Only select ID
-WithChat(func(q *ent.ChatQuery) {
-q.Select(chat.FieldID) // Only need chat ID
-}).
-All(ctx)
+    Where(message.HasChatWith(chat.IDIn(chatIDs...))).
+    Select(message.FieldID). // Only select ID
+    WithChat(func(q *ent.ChatQuery) {
+        q.Select(chat.FieldID) // Only need chat ID
+    }).
+    All(ctx)
 ```
 
 This approach reduces SQL queries from ~100+ to ~12 for complex GraphQL operations.

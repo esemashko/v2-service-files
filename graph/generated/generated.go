@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"main/ent"
 	"main/ent/schema/uuidgql"
+	"main/graph/model"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -56,6 +57,15 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	BatchDownloadURLResponse struct {
+		ArchiveName func(childComplexity int) int
+		ExpiresAt   func(childComplexity int) int
+		Message     func(childComplexity int) int
+		Success     func(childComplexity int) int
+		TotalFiles  func(childComplexity int) int
+		URL         func(childComplexity int) int
+	}
+
 	Entity struct {
 		FindFileByID func(childComplexity int, id uuid.UUID) int
 		FindUserByID func(childComplexity int, id uuid.UUID) int
@@ -82,15 +92,55 @@ type ComplexityRoot struct {
 		TotalCount func(childComplexity int) int
 	}
 
+	FileDeleteResponse struct {
+		Message func(childComplexity int) int
+		Success func(childComplexity int) int
+	}
+
+	FileDownloadURLResponse struct {
+		ExpiresAt func(childComplexity int) int
+		Message   func(childComplexity int) int
+		Success   func(childComplexity int) int
+		URL       func(childComplexity int) int
+	}
+
 	FileEdge struct {
 		Cursor func(childComplexity int) int
 		Node   func(childComplexity int) int
 	}
 
+	FileListResponse struct {
+		Files      func(childComplexity int) int
+		Message    func(childComplexity int) int
+		Success    func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
+	FileResponse struct {
+		File    func(childComplexity int) int
+		Message func(childComplexity int) int
+		Success func(childComplexity int) int
+	}
+
+	FileUploadResponse struct {
+		File    func(childComplexity int) int
+		Message func(childComplexity int) int
+		Success func(childComplexity int) int
+	}
+
+	FilesBatchResponse struct {
+		Files        func(childComplexity int) int
+		Message      func(childComplexity int) int
+		Success      func(childComplexity int) int
+		TotalUpdated func(childComplexity int) int
+	}
+
 	Mutation struct {
-		DeleteFile func(childComplexity int, id uuid.UUID) int
-		UpdateFile func(childComplexity int, id uuid.UUID, input ent.UpdateFileInput) int
-		UploadFile func(childComplexity int, input ent.CreateFileInput) int
+		DeleteFile          func(childComplexity int, id uuid.UUID) int
+		GetBatchDownloadURL func(childComplexity int, input model.BatchDownloadInput) int
+		GetFileDownloadURL  func(childComplexity int, id uuid.UUID) int
+		UpdateFileInfo      func(childComplexity int, id uuid.UUID, input model.UpdateFileInfoInput) int
+		UploadFile          func(childComplexity int, input model.UploadFileInput) int
 	}
 
 	PageInfo struct {
@@ -126,9 +176,11 @@ type FileResolver interface {
 	CanDelete(ctx context.Context, obj *ent.File) (bool, error)
 }
 type MutationResolver interface {
-	UploadFile(ctx context.Context, input ent.CreateFileInput) (*ent.File, error)
-	UpdateFile(ctx context.Context, id uuid.UUID, input ent.UpdateFileInput) (*ent.File, error)
-	DeleteFile(ctx context.Context, id uuid.UUID) (bool, error)
+	UploadFile(ctx context.Context, input model.UploadFileInput) (*model.FileUploadResponse, error)
+	UpdateFileInfo(ctx context.Context, id uuid.UUID, input model.UpdateFileInfoInput) (*model.FileResponse, error)
+	DeleteFile(ctx context.Context, id uuid.UUID) (*model.FileDeleteResponse, error)
+	GetFileDownloadURL(ctx context.Context, id uuid.UUID) (*model.FileDownloadURLResponse, error)
+	GetBatchDownloadURL(ctx context.Context, input model.BatchDownloadInput) (*model.BatchDownloadURLResponse, error)
 }
 type QueryResolver interface {
 	Node(ctx context.Context, id uuid.UUID) (ent.Noder, error)
@@ -154,6 +206,48 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "BatchDownloadURLResponse.archiveName":
+		if e.complexity.BatchDownloadURLResponse.ArchiveName == nil {
+			break
+		}
+
+		return e.complexity.BatchDownloadURLResponse.ArchiveName(childComplexity), true
+
+	case "BatchDownloadURLResponse.expiresAt":
+		if e.complexity.BatchDownloadURLResponse.ExpiresAt == nil {
+			break
+		}
+
+		return e.complexity.BatchDownloadURLResponse.ExpiresAt(childComplexity), true
+
+	case "BatchDownloadURLResponse.message":
+		if e.complexity.BatchDownloadURLResponse.Message == nil {
+			break
+		}
+
+		return e.complexity.BatchDownloadURLResponse.Message(childComplexity), true
+
+	case "BatchDownloadURLResponse.success":
+		if e.complexity.BatchDownloadURLResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.BatchDownloadURLResponse.Success(childComplexity), true
+
+	case "BatchDownloadURLResponse.totalFiles":
+		if e.complexity.BatchDownloadURLResponse.TotalFiles == nil {
+			break
+		}
+
+		return e.complexity.BatchDownloadURLResponse.TotalFiles(childComplexity), true
+
+	case "BatchDownloadURLResponse.url":
+		if e.complexity.BatchDownloadURLResponse.URL == nil {
+			break
+		}
+
+		return e.complexity.BatchDownloadURLResponse.URL(childComplexity), true
 
 	case "Entity.findFileByID":
 		if e.complexity.Entity.FindFileByID == nil {
@@ -284,6 +378,48 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.FileConnection.TotalCount(childComplexity), true
 
+	case "FileDeleteResponse.message":
+		if e.complexity.FileDeleteResponse.Message == nil {
+			break
+		}
+
+		return e.complexity.FileDeleteResponse.Message(childComplexity), true
+
+	case "FileDeleteResponse.success":
+		if e.complexity.FileDeleteResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.FileDeleteResponse.Success(childComplexity), true
+
+	case "FileDownloadURLResponse.expiresAt":
+		if e.complexity.FileDownloadURLResponse.ExpiresAt == nil {
+			break
+		}
+
+		return e.complexity.FileDownloadURLResponse.ExpiresAt(childComplexity), true
+
+	case "FileDownloadURLResponse.message":
+		if e.complexity.FileDownloadURLResponse.Message == nil {
+			break
+		}
+
+		return e.complexity.FileDownloadURLResponse.Message(childComplexity), true
+
+	case "FileDownloadURLResponse.success":
+		if e.complexity.FileDownloadURLResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.FileDownloadURLResponse.Success(childComplexity), true
+
+	case "FileDownloadURLResponse.url":
+		if e.complexity.FileDownloadURLResponse.URL == nil {
+			break
+		}
+
+		return e.complexity.FileDownloadURLResponse.URL(childComplexity), true
+
 	case "FileEdge.cursor":
 		if e.complexity.FileEdge.Cursor == nil {
 			break
@@ -298,6 +434,104 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.FileEdge.Node(childComplexity), true
 
+	case "FileListResponse.files":
+		if e.complexity.FileListResponse.Files == nil {
+			break
+		}
+
+		return e.complexity.FileListResponse.Files(childComplexity), true
+
+	case "FileListResponse.message":
+		if e.complexity.FileListResponse.Message == nil {
+			break
+		}
+
+		return e.complexity.FileListResponse.Message(childComplexity), true
+
+	case "FileListResponse.success":
+		if e.complexity.FileListResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.FileListResponse.Success(childComplexity), true
+
+	case "FileListResponse.totalCount":
+		if e.complexity.FileListResponse.TotalCount == nil {
+			break
+		}
+
+		return e.complexity.FileListResponse.TotalCount(childComplexity), true
+
+	case "FileResponse.file":
+		if e.complexity.FileResponse.File == nil {
+			break
+		}
+
+		return e.complexity.FileResponse.File(childComplexity), true
+
+	case "FileResponse.message":
+		if e.complexity.FileResponse.Message == nil {
+			break
+		}
+
+		return e.complexity.FileResponse.Message(childComplexity), true
+
+	case "FileResponse.success":
+		if e.complexity.FileResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.FileResponse.Success(childComplexity), true
+
+	case "FileUploadResponse.file":
+		if e.complexity.FileUploadResponse.File == nil {
+			break
+		}
+
+		return e.complexity.FileUploadResponse.File(childComplexity), true
+
+	case "FileUploadResponse.message":
+		if e.complexity.FileUploadResponse.Message == nil {
+			break
+		}
+
+		return e.complexity.FileUploadResponse.Message(childComplexity), true
+
+	case "FileUploadResponse.success":
+		if e.complexity.FileUploadResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.FileUploadResponse.Success(childComplexity), true
+
+	case "FilesBatchResponse.files":
+		if e.complexity.FilesBatchResponse.Files == nil {
+			break
+		}
+
+		return e.complexity.FilesBatchResponse.Files(childComplexity), true
+
+	case "FilesBatchResponse.message":
+		if e.complexity.FilesBatchResponse.Message == nil {
+			break
+		}
+
+		return e.complexity.FilesBatchResponse.Message(childComplexity), true
+
+	case "FilesBatchResponse.success":
+		if e.complexity.FilesBatchResponse.Success == nil {
+			break
+		}
+
+		return e.complexity.FilesBatchResponse.Success(childComplexity), true
+
+	case "FilesBatchResponse.totalUpdated":
+		if e.complexity.FilesBatchResponse.TotalUpdated == nil {
+			break
+		}
+
+		return e.complexity.FilesBatchResponse.TotalUpdated(childComplexity), true
+
 	case "Mutation.deleteFile":
 		if e.complexity.Mutation.DeleteFile == nil {
 			break
@@ -310,17 +544,41 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.DeleteFile(childComplexity, args["id"].(uuid.UUID)), true
 
-	case "Mutation.updateFile":
-		if e.complexity.Mutation.UpdateFile == nil {
+	case "Mutation.getBatchDownloadURL":
+		if e.complexity.Mutation.GetBatchDownloadURL == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_updateFile_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_getBatchDownloadURL_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateFile(childComplexity, args["id"].(uuid.UUID), args["input"].(ent.UpdateFileInput)), true
+		return e.complexity.Mutation.GetBatchDownloadURL(childComplexity, args["input"].(model.BatchDownloadInput)), true
+
+	case "Mutation.getFileDownloadURL":
+		if e.complexity.Mutation.GetFileDownloadURL == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_getFileDownloadURL_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GetFileDownloadURL(childComplexity, args["id"].(uuid.UUID)), true
+
+	case "Mutation.updateFileInfo":
+		if e.complexity.Mutation.UpdateFileInfo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateFileInfo_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateFileInfo(childComplexity, args["id"].(uuid.UUID), args["input"].(model.UpdateFileInfoInput)), true
 
 	case "Mutation.uploadFile":
 		if e.complexity.Mutation.UploadFile == nil {
@@ -332,7 +590,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UploadFile(childComplexity, args["input"].(ent.CreateFileInput)), true
+		return e.complexity.Mutation.UploadFile(childComplexity, args["input"].(model.UploadFileInput)), true
 
 	case "PageInfo.endCursor":
 		if e.complexity.PageInfo.EndCursor == nil {
@@ -439,10 +697,13 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputBatchDownloadInput,
 		ec.unmarshalInputCreateFileInput,
 		ec.unmarshalInputFileOrder,
 		ec.unmarshalInputFileWhereInput,
+		ec.unmarshalInputUpdateFileInfoInput,
 		ec.unmarshalInputUpdateFileInput,
+		ec.unmarshalInputUploadFileInput,
 	)
 	first := true
 
@@ -964,15 +1225,85 @@ extend type File @key(fields: "id") {
 }
 `, BuiltIn: false},
 	{Name: "../schema/file.graphql", Input: `extend type Mutation {
-    uploadFile(input: CreateFileInput!): File! @auth
-    updateFile(id: UUID!, input: UpdateFileInput!): File! @auth
-    deleteFile(id: UUID!): Boolean! @auth
+    uploadFile(input: UploadFileInput!): FileUploadResponse! @auth
+    updateFileInfo(id: ID!, input: UpdateFileInfoInput!): FileResponse! @auth
+    deleteFile(id: ID!): FileDeleteResponse! @auth
+    getFileDownloadURL(id: ID!): FileDownloadURLResponse! @auth
+    getBatchDownloadURL(input: BatchDownloadInput!): BatchDownloadURLResponse! @auth
 }
 
 extend type File {
     # Computed permission: whether current user can delete this file
     canDelete: Boolean! @auth
 }
+
+type FileResponse {
+    success: Boolean!
+    message: String!
+    file: File
+}
+
+type FileUploadResponse {
+    success: Boolean!
+    message: String!
+    file: File
+}
+
+type FileDeleteResponse {
+    success: Boolean!
+    message: String!
+}
+
+type FileListResponse {
+    success: Boolean!
+    message: String!
+    files: [File!]!
+    totalCount: Int!
+}
+
+type FileDownloadURLResponse {
+    success: Boolean!
+    message: String!
+    url: String
+    expiresAt: Time
+}
+
+type BatchDownloadURLResponse {
+    success: Boolean!
+    message: String!
+    url: String
+    expiresAt: Time
+    archiveName: String
+    totalFiles: Int!
+}
+
+
+
+type FilesBatchResponse {
+    success: Boolean!
+    message: String!
+    files: [File!]!
+    totalUpdated: Int!
+}
+
+input UploadFileInput {
+    file: Upload!                    # Файл для загрузки
+    description: String
+}
+
+input UpdateFileInfoInput {
+    originalName: String
+    description: String
+}
+
+"""visibility removed; batch input no longer needed"""
+
+input BatchDownloadInput {
+    fileIds: [ID!]!                 # Список ID файлов для архивирования
+    archiveName: String              # Опциональное имя архива
+}
+`, BuiltIn: false},
+	{Name: "../schema/scalars.graphql", Input: `scalar Upload
 `, BuiltIn: false},
 	{Name: "../../federation/directives.graphql", Input: `
 	directive @authenticated on FIELD_DEFINITION | OBJECT | INTERFACE | SCALAR | ENUM
@@ -1076,7 +1407,7 @@ func (ec *executionContext) field_Entity_findUserByID_args(ctx context.Context, 
 func (ec *executionContext) field_Mutation_deleteFile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID)
 	if err != nil {
 		return nil, err
 	}
@@ -1084,15 +1415,37 @@ func (ec *executionContext) field_Mutation_deleteFile_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_updateFile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_getBatchDownloadURL_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNBatchDownloadInput2mainᚋgraphᚋmodelᚐBatchDownloadInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_getFileDownloadURL_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID)
 	if err != nil {
 		return nil, err
 	}
 	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateFileInput2mainᚋentᚐUpdateFileInput)
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateFileInfo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateFileInfoInput2mainᚋgraphᚋmodelᚐUpdateFileInfoInput)
 	if err != nil {
 		return nil, err
 	}
@@ -1103,7 +1456,7 @@ func (ec *executionContext) field_Mutation_updateFile_args(ctx context.Context, 
 func (ec *executionContext) field_Mutation_uploadFile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateFileInput2mainᚋentᚐCreateFileInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUploadFileInput2mainᚋgraphᚋmodelᚐUploadFileInput)
 	if err != nil {
 		return nil, err
 	}
@@ -1242,6 +1595,261 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _BatchDownloadURLResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.BatchDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BatchDownloadURLResponse_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BatchDownloadURLResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BatchDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BatchDownloadURLResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.BatchDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BatchDownloadURLResponse_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BatchDownloadURLResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BatchDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BatchDownloadURLResponse_url(ctx context.Context, field graphql.CollectedField, obj *model.BatchDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BatchDownloadURLResponse_url(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BatchDownloadURLResponse_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BatchDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BatchDownloadURLResponse_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.BatchDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BatchDownloadURLResponse_expiresAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ExpiresAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BatchDownloadURLResponse_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BatchDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BatchDownloadURLResponse_archiveName(ctx context.Context, field graphql.CollectedField, obj *model.BatchDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BatchDownloadURLResponse_archiveName(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArchiveName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BatchDownloadURLResponse_archiveName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BatchDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BatchDownloadURLResponse_totalFiles(ctx context.Context, field graphql.CollectedField, obj *model.BatchDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_BatchDownloadURLResponse_totalFiles(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalFiles, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_BatchDownloadURLResponse_totalFiles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BatchDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _Entity_findFileByID(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Entity_findFileByID(ctx, field)
@@ -2073,6 +2681,264 @@ func (ec *executionContext) fieldContext_FileConnection_totalCount(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _FileDeleteResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.FileDeleteResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileDeleteResponse_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileDeleteResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileDeleteResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileDeleteResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.FileDeleteResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileDeleteResponse_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileDeleteResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileDeleteResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileDownloadURLResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.FileDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileDownloadURLResponse_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileDownloadURLResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileDownloadURLResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.FileDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileDownloadURLResponse_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileDownloadURLResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileDownloadURLResponse_url(ctx context.Context, field graphql.CollectedField, obj *model.FileDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileDownloadURLResponse_url(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileDownloadURLResponse_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileDownloadURLResponse_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.FileDownloadURLResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileDownloadURLResponse_expiresAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ExpiresAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileDownloadURLResponse_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileDownloadURLResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _FileEdge_node(ctx context.Context, field graphql.CollectedField, obj *ent.FileEdge) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_FileEdge_node(ctx, field)
 	if err != nil {
@@ -2184,8 +3050,8 @@ func (ec *executionContext) fieldContext_FileEdge_cursor(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_uploadFile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_uploadFile(ctx, field)
+func (ec *executionContext) _FileListResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.FileListResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileListResponse_success(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2197,30 +3063,8 @@ func (ec *executionContext) _Mutation_uploadFile(ctx context.Context, field grap
 		}
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		directive0 := func(rctx context.Context) (any, error) {
-			ctx = rctx // use context from middleware stack in children
-			return ec.resolvers.Mutation().UploadFile(rctx, fc.Args["input"].(ent.CreateFileInput))
-		}
-
-		directive1 := func(ctx context.Context) (any, error) {
-			if ec.directives.Auth == nil {
-				var zeroVal *ent.File
-				return zeroVal, errors.New("directive auth is not implemented")
-			}
-			return ec.directives.Auth(ctx, nil, directive0)
-		}
-
-		tmp, err := directive1(rctx)
-		if err != nil {
-			return nil, graphql.ErrorOnPath(ctx, err)
-		}
-		if tmp == nil {
-			return nil, nil
-		}
-		if data, ok := tmp.(*ent.File); ok {
-			return data, nil
-		}
-		return nil, fmt.Errorf(`unexpected type %T from directive, should be *main/ent.File`, tmp)
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2232,17 +3076,105 @@ func (ec *executionContext) _Mutation_uploadFile(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*ent.File)
+	res := resTmp.(bool)
 	fc.Result = res
-	return ec.marshalNFile2ᚖmainᚋentᚐFile(ctx, field.Selections, res)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_uploadFile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_FileListResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Mutation",
+		Object:     "FileListResponse",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileListResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.FileListResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileListResponse_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileListResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileListResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileListResponse_files(ctx context.Context, field graphql.CollectedField, obj *model.FileListResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileListResponse_files(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Files, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*ent.File)
+	fc.Result = res
+	return ec.marshalNFile2ᚕᚖmainᚋentᚐFileᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileListResponse_files(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileListResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -2271,6 +3203,636 @@ func (ec *executionContext) fieldContext_Mutation_uploadFile(ctx context.Context
 				return ec.fieldContext_File_canDelete(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileListResponse_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.FileListResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileListResponse_totalCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileListResponse_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileListResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.FileResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileResponse_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.FileResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileResponse_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileResponse_file(ctx context.Context, field graphql.CollectedField, obj *model.FileResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileResponse_file(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.File, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ent.File)
+	fc.Result = res
+	return ec.marshalOFile2ᚖmainᚋentᚐFile(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileResponse_file(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_File_id(ctx, field)
+			case "createTime":
+				return ec.fieldContext_File_createTime(ctx, field)
+			case "updateTime":
+				return ec.fieldContext_File_updateTime(ctx, field)
+			case "originalName":
+				return ec.fieldContext_File_originalName(ctx, field)
+			case "storageKey":
+				return ec.fieldContext_File_storageKey(ctx, field)
+			case "mimeType":
+				return ec.fieldContext_File_mimeType(ctx, field)
+			case "size":
+				return ec.fieldContext_File_size(ctx, field)
+			case "path":
+				return ec.fieldContext_File_path(ctx, field)
+			case "description":
+				return ec.fieldContext_File_description(ctx, field)
+			case "metadata":
+				return ec.fieldContext_File_metadata(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_File_createdBy(ctx, field)
+			case "canDelete":
+				return ec.fieldContext_File_canDelete(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileUploadResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.FileUploadResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileUploadResponse_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileUploadResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileUploadResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileUploadResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.FileUploadResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileUploadResponse_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileUploadResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileUploadResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FileUploadResponse_file(ctx context.Context, field graphql.CollectedField, obj *model.FileUploadResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FileUploadResponse_file(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.File, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ent.File)
+	fc.Result = res
+	return ec.marshalOFile2ᚖmainᚋentᚐFile(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FileUploadResponse_file(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FileUploadResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_File_id(ctx, field)
+			case "createTime":
+				return ec.fieldContext_File_createTime(ctx, field)
+			case "updateTime":
+				return ec.fieldContext_File_updateTime(ctx, field)
+			case "originalName":
+				return ec.fieldContext_File_originalName(ctx, field)
+			case "storageKey":
+				return ec.fieldContext_File_storageKey(ctx, field)
+			case "mimeType":
+				return ec.fieldContext_File_mimeType(ctx, field)
+			case "size":
+				return ec.fieldContext_File_size(ctx, field)
+			case "path":
+				return ec.fieldContext_File_path(ctx, field)
+			case "description":
+				return ec.fieldContext_File_description(ctx, field)
+			case "metadata":
+				return ec.fieldContext_File_metadata(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_File_createdBy(ctx, field)
+			case "canDelete":
+				return ec.fieldContext_File_canDelete(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FilesBatchResponse_success(ctx context.Context, field graphql.CollectedField, obj *model.FilesBatchResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FilesBatchResponse_success(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Success, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FilesBatchResponse_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FilesBatchResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FilesBatchResponse_message(ctx context.Context, field graphql.CollectedField, obj *model.FilesBatchResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FilesBatchResponse_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FilesBatchResponse_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FilesBatchResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FilesBatchResponse_files(ctx context.Context, field graphql.CollectedField, obj *model.FilesBatchResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FilesBatchResponse_files(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Files, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*ent.File)
+	fc.Result = res
+	return ec.marshalNFile2ᚕᚖmainᚋentᚐFileᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FilesBatchResponse_files(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FilesBatchResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_File_id(ctx, field)
+			case "createTime":
+				return ec.fieldContext_File_createTime(ctx, field)
+			case "updateTime":
+				return ec.fieldContext_File_updateTime(ctx, field)
+			case "originalName":
+				return ec.fieldContext_File_originalName(ctx, field)
+			case "storageKey":
+				return ec.fieldContext_File_storageKey(ctx, field)
+			case "mimeType":
+				return ec.fieldContext_File_mimeType(ctx, field)
+			case "size":
+				return ec.fieldContext_File_size(ctx, field)
+			case "path":
+				return ec.fieldContext_File_path(ctx, field)
+			case "description":
+				return ec.fieldContext_File_description(ctx, field)
+			case "metadata":
+				return ec.fieldContext_File_metadata(ctx, field)
+			case "createdBy":
+				return ec.fieldContext_File_createdBy(ctx, field)
+			case "canDelete":
+				return ec.fieldContext_File_canDelete(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FilesBatchResponse_totalUpdated(ctx context.Context, field graphql.CollectedField, obj *model.FilesBatchResponse) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FilesBatchResponse_totalUpdated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUpdated, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FilesBatchResponse_totalUpdated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FilesBatchResponse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_uploadFile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_uploadFile(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		directive0 := func(rctx context.Context) (any, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().UploadFile(rctx, fc.Args["input"].(model.UploadFileInput))
+		}
+
+		directive1 := func(ctx context.Context) (any, error) {
+			if ec.directives.Auth == nil {
+				var zeroVal *model.FileUploadResponse
+				return zeroVal, errors.New("directive auth is not implemented")
+			}
+			return ec.directives.Auth(ctx, nil, directive0)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.FileUploadResponse); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *main/graph/model.FileUploadResponse`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.FileUploadResponse)
+	fc.Result = res
+	return ec.marshalNFileUploadResponse2ᚖmainᚋgraphᚋmodelᚐFileUploadResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_uploadFile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_FileUploadResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_FileUploadResponse_message(ctx, field)
+			case "file":
+				return ec.fieldContext_FileUploadResponse_file(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FileUploadResponse", field.Name)
 		},
 	}
 	defer func() {
@@ -2287,8 +3849,8 @@ func (ec *executionContext) fieldContext_Mutation_uploadFile(ctx context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_updateFile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_updateFile(ctx, field)
+func (ec *executionContext) _Mutation_updateFileInfo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateFileInfo(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2302,12 +3864,12 @@ func (ec *executionContext) _Mutation_updateFile(ctx context.Context, field grap
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		directive0 := func(rctx context.Context) (any, error) {
 			ctx = rctx // use context from middleware stack in children
-			return ec.resolvers.Mutation().UpdateFile(rctx, fc.Args["id"].(uuid.UUID), fc.Args["input"].(ent.UpdateFileInput))
+			return ec.resolvers.Mutation().UpdateFileInfo(rctx, fc.Args["id"].(uuid.UUID), fc.Args["input"].(model.UpdateFileInfoInput))
 		}
 
 		directive1 := func(ctx context.Context) (any, error) {
 			if ec.directives.Auth == nil {
-				var zeroVal *ent.File
+				var zeroVal *model.FileResponse
 				return zeroVal, errors.New("directive auth is not implemented")
 			}
 			return ec.directives.Auth(ctx, nil, directive0)
@@ -2320,10 +3882,10 @@ func (ec *executionContext) _Mutation_updateFile(ctx context.Context, field grap
 		if tmp == nil {
 			return nil, nil
 		}
-		if data, ok := tmp.(*ent.File); ok {
+		if data, ok := tmp.(*model.FileResponse); ok {
 			return data, nil
 		}
-		return nil, fmt.Errorf(`unexpected type %T from directive, should be *main/ent.File`, tmp)
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *main/graph/model.FileResponse`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2335,12 +3897,12 @@ func (ec *executionContext) _Mutation_updateFile(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*ent.File)
+	res := resTmp.(*model.FileResponse)
 	fc.Result = res
-	return ec.marshalNFile2ᚖmainᚋentᚐFile(ctx, field.Selections, res)
+	return ec.marshalNFileResponse2ᚖmainᚋgraphᚋmodelᚐFileResponse(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_updateFile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateFileInfo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -2348,32 +3910,14 @@ func (ec *executionContext) fieldContext_Mutation_updateFile(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_File_id(ctx, field)
-			case "createTime":
-				return ec.fieldContext_File_createTime(ctx, field)
-			case "updateTime":
-				return ec.fieldContext_File_updateTime(ctx, field)
-			case "originalName":
-				return ec.fieldContext_File_originalName(ctx, field)
-			case "storageKey":
-				return ec.fieldContext_File_storageKey(ctx, field)
-			case "mimeType":
-				return ec.fieldContext_File_mimeType(ctx, field)
-			case "size":
-				return ec.fieldContext_File_size(ctx, field)
-			case "path":
-				return ec.fieldContext_File_path(ctx, field)
-			case "description":
-				return ec.fieldContext_File_description(ctx, field)
-			case "metadata":
-				return ec.fieldContext_File_metadata(ctx, field)
-			case "createdBy":
-				return ec.fieldContext_File_createdBy(ctx, field)
-			case "canDelete":
-				return ec.fieldContext_File_canDelete(ctx, field)
+			case "success":
+				return ec.fieldContext_FileResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_FileResponse_message(ctx, field)
+			case "file":
+				return ec.fieldContext_FileResponse_file(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type File", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type FileResponse", field.Name)
 		},
 	}
 	defer func() {
@@ -2383,7 +3927,7 @@ func (ec *executionContext) fieldContext_Mutation_updateFile(ctx context.Context
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateFile_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_updateFileInfo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2410,7 +3954,7 @@ func (ec *executionContext) _Mutation_deleteFile(ctx context.Context, field grap
 
 		directive1 := func(ctx context.Context) (any, error) {
 			if ec.directives.Auth == nil {
-				var zeroVal bool
+				var zeroVal *model.FileDeleteResponse
 				return zeroVal, errors.New("directive auth is not implemented")
 			}
 			return ec.directives.Auth(ctx, nil, directive0)
@@ -2423,10 +3967,10 @@ func (ec *executionContext) _Mutation_deleteFile(ctx context.Context, field grap
 		if tmp == nil {
 			return nil, nil
 		}
-		if data, ok := tmp.(bool); ok {
+		if data, ok := tmp.(*model.FileDeleteResponse); ok {
 			return data, nil
 		}
-		return nil, fmt.Errorf(`unexpected type %T from directive, should be bool`, tmp)
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *main/graph/model.FileDeleteResponse`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2438,9 +3982,9 @@ func (ec *executionContext) _Mutation_deleteFile(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(bool)
+	res := resTmp.(*model.FileDeleteResponse)
 	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+	return ec.marshalNFileDeleteResponse2ᚖmainᚋgraphᚋmodelᚐFileDeleteResponse(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_deleteFile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2450,7 +3994,13 @@ func (ec *executionContext) fieldContext_Mutation_deleteFile(ctx context.Context
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_FileDeleteResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_FileDeleteResponse_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FileDeleteResponse", field.Name)
 		},
 	}
 	defer func() {
@@ -2461,6 +4011,184 @@ func (ec *executionContext) fieldContext_Mutation_deleteFile(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteFile_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_getFileDownloadURL(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_getFileDownloadURL(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		directive0 := func(rctx context.Context) (any, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().GetFileDownloadURL(rctx, fc.Args["id"].(uuid.UUID))
+		}
+
+		directive1 := func(ctx context.Context) (any, error) {
+			if ec.directives.Auth == nil {
+				var zeroVal *model.FileDownloadURLResponse
+				return zeroVal, errors.New("directive auth is not implemented")
+			}
+			return ec.directives.Auth(ctx, nil, directive0)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.FileDownloadURLResponse); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *main/graph/model.FileDownloadURLResponse`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.FileDownloadURLResponse)
+	fc.Result = res
+	return ec.marshalNFileDownloadURLResponse2ᚖmainᚋgraphᚋmodelᚐFileDownloadURLResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_getFileDownloadURL(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_FileDownloadURLResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_FileDownloadURLResponse_message(ctx, field)
+			case "url":
+				return ec.fieldContext_FileDownloadURLResponse_url(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_FileDownloadURLResponse_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FileDownloadURLResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_getFileDownloadURL_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_getBatchDownloadURL(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_getBatchDownloadURL(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		directive0 := func(rctx context.Context) (any, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().GetBatchDownloadURL(rctx, fc.Args["input"].(model.BatchDownloadInput))
+		}
+
+		directive1 := func(ctx context.Context) (any, error) {
+			if ec.directives.Auth == nil {
+				var zeroVal *model.BatchDownloadURLResponse
+				return zeroVal, errors.New("directive auth is not implemented")
+			}
+			return ec.directives.Auth(ctx, nil, directive0)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.BatchDownloadURLResponse); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *main/graph/model.BatchDownloadURLResponse`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.BatchDownloadURLResponse)
+	fc.Result = res
+	return ec.marshalNBatchDownloadURLResponse2ᚖmainᚋgraphᚋmodelᚐBatchDownloadURLResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_getBatchDownloadURL(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_BatchDownloadURLResponse_success(ctx, field)
+			case "message":
+				return ec.fieldContext_BatchDownloadURLResponse_message(ctx, field)
+			case "url":
+				return ec.fieldContext_BatchDownloadURLResponse_url(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_BatchDownloadURLResponse_expiresAt(ctx, field)
+			case "archiveName":
+				return ec.fieldContext_BatchDownloadURLResponse_archiveName(ctx, field)
+			case "totalFiles":
+				return ec.fieldContext_BatchDownloadURLResponse_totalFiles(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BatchDownloadURLResponse", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_getBatchDownloadURL_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5077,6 +6805,40 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputBatchDownloadInput(ctx context.Context, obj any) (model.BatchDownloadInput, error) {
+	var it model.BatchDownloadInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"fileIds", "archiveName"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "fileIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fileIds"))
+			data, err := ec.unmarshalNID2ᚕgithubᚗcomᚋgoogleᚋuuidᚐUUIDᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FileIds = data
+		case "archiveName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("archiveName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ArchiveName = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateFileInput(ctx context.Context, obj any) (ent.CreateFileInput, error) {
 	var it ent.CreateFileInput
 	asMap := map[string]any{}
@@ -5932,6 +7694,40 @@ func (ec *executionContext) unmarshalInputFileWhereInput(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateFileInfoInput(ctx context.Context, obj any) (model.UpdateFileInfoInput, error) {
+	var it model.UpdateFileInfoInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"originalName", "description"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "originalName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("originalName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OriginalName = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateFileInput(ctx context.Context, obj any) (ent.UpdateFileInput, error) {
 	var it ent.UpdateFileInput
 	asMap := map[string]any{}
@@ -6022,6 +7818,40 @@ func (ec *executionContext) unmarshalInputUpdateFileInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUploadFileInput(ctx context.Context, obj any) (model.UploadFileInput, error) {
+	var it model.UploadFileInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"file", "description"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "file":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+			data, err := ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.File = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -6062,6 +7892,61 @@ func (ec *executionContext) __Entity(ctx context.Context, sel ast.SelectionSet, 
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var batchDownloadURLResponseImplementors = []string{"BatchDownloadURLResponse"}
+
+func (ec *executionContext) _BatchDownloadURLResponse(ctx context.Context, sel ast.SelectionSet, obj *model.BatchDownloadURLResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, batchDownloadURLResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BatchDownloadURLResponse")
+		case "success":
+			out.Values[i] = ec._BatchDownloadURLResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._BatchDownloadURLResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "url":
+			out.Values[i] = ec._BatchDownloadURLResponse_url(ctx, field, obj)
+		case "expiresAt":
+			out.Values[i] = ec._BatchDownloadURLResponse_expiresAt(ctx, field, obj)
+		case "archiveName":
+			out.Values[i] = ec._BatchDownloadURLResponse_archiveName(ctx, field, obj)
+		case "totalFiles":
+			out.Values[i] = ec._BatchDownloadURLResponse_totalFiles(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
 
 var entityImplementors = []string{"Entity"}
 
@@ -6342,6 +8227,98 @@ func (ec *executionContext) _FileConnection(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var fileDeleteResponseImplementors = []string{"FileDeleteResponse"}
+
+func (ec *executionContext) _FileDeleteResponse(ctx context.Context, sel ast.SelectionSet, obj *model.FileDeleteResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, fileDeleteResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FileDeleteResponse")
+		case "success":
+			out.Values[i] = ec._FileDeleteResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._FileDeleteResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var fileDownloadURLResponseImplementors = []string{"FileDownloadURLResponse"}
+
+func (ec *executionContext) _FileDownloadURLResponse(ctx context.Context, sel ast.SelectionSet, obj *model.FileDownloadURLResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, fileDownloadURLResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FileDownloadURLResponse")
+		case "success":
+			out.Values[i] = ec._FileDownloadURLResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._FileDownloadURLResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "url":
+			out.Values[i] = ec._FileDownloadURLResponse_url(ctx, field, obj)
+		case "expiresAt":
+			out.Values[i] = ec._FileDownloadURLResponse_expiresAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var fileEdgeImplementors = []string{"FileEdge"}
 
 func (ec *executionContext) _FileEdge(ctx context.Context, sel ast.SelectionSet, obj *ent.FileEdge) graphql.Marshaler {
@@ -6357,6 +8334,206 @@ func (ec *executionContext) _FileEdge(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = ec._FileEdge_node(ctx, field, obj)
 		case "cursor":
 			out.Values[i] = ec._FileEdge_cursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var fileListResponseImplementors = []string{"FileListResponse"}
+
+func (ec *executionContext) _FileListResponse(ctx context.Context, sel ast.SelectionSet, obj *model.FileListResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, fileListResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FileListResponse")
+		case "success":
+			out.Values[i] = ec._FileListResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._FileListResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "files":
+			out.Values[i] = ec._FileListResponse_files(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._FileListResponse_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var fileResponseImplementors = []string{"FileResponse"}
+
+func (ec *executionContext) _FileResponse(ctx context.Context, sel ast.SelectionSet, obj *model.FileResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, fileResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FileResponse")
+		case "success":
+			out.Values[i] = ec._FileResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._FileResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "file":
+			out.Values[i] = ec._FileResponse_file(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var fileUploadResponseImplementors = []string{"FileUploadResponse"}
+
+func (ec *executionContext) _FileUploadResponse(ctx context.Context, sel ast.SelectionSet, obj *model.FileUploadResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, fileUploadResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FileUploadResponse")
+		case "success":
+			out.Values[i] = ec._FileUploadResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._FileUploadResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "file":
+			out.Values[i] = ec._FileUploadResponse_file(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var filesBatchResponseImplementors = []string{"FilesBatchResponse"}
+
+func (ec *executionContext) _FilesBatchResponse(ctx context.Context, sel ast.SelectionSet, obj *model.FilesBatchResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, filesBatchResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FilesBatchResponse")
+		case "success":
+			out.Values[i] = ec._FilesBatchResponse_success(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._FilesBatchResponse_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "files":
+			out.Values[i] = ec._FilesBatchResponse_files(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUpdated":
+			out.Values[i] = ec._FilesBatchResponse_totalUpdated(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -6409,9 +8586,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "updateFile":
+		case "updateFileInfo":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateFile(ctx, field)
+				return ec._Mutation_updateFileInfo(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -6419,6 +8596,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteFile":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteFile(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "getFileDownloadURL":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_getFileDownloadURL(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "getBatchDownloadURL":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_getBatchDownloadURL(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -7061,6 +9252,25 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) unmarshalNBatchDownloadInput2mainᚋgraphᚋmodelᚐBatchDownloadInput(ctx context.Context, v any) (model.BatchDownloadInput, error) {
+	res, err := ec.unmarshalInputBatchDownloadInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBatchDownloadURLResponse2mainᚋgraphᚋmodelᚐBatchDownloadURLResponse(ctx context.Context, sel ast.SelectionSet, v model.BatchDownloadURLResponse) graphql.Marshaler {
+	return ec._BatchDownloadURLResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBatchDownloadURLResponse2ᚖmainᚋgraphᚋmodelᚐBatchDownloadURLResponse(ctx context.Context, sel ast.SelectionSet, v *model.BatchDownloadURLResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BatchDownloadURLResponse(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -7075,11 +9285,6 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) unmarshalNCreateFileInput2mainᚋentᚐCreateFileInput(ctx context.Context, v any) (ent.CreateFileInput, error) {
-	res, err := ec.unmarshalInputCreateFileInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNCursor2entgoᚗioᚋcontribᚋentgqlᚐCursor(ctx context.Context, v any) (entgql.Cursor[uuid.UUID], error) {
@@ -7112,6 +9317,50 @@ func (ec *executionContext) marshalNFile2mainᚋentᚐFile(ctx context.Context, 
 	return ec._File(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNFile2ᚕᚖmainᚋentᚐFileᚄ(ctx context.Context, sel ast.SelectionSet, v []*ent.File) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNFile2ᚖmainᚋentᚐFile(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNFile2ᚖmainᚋentᚐFile(ctx context.Context, sel ast.SelectionSet, v *ent.File) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -7136,6 +9385,34 @@ func (ec *executionContext) marshalNFileConnection2ᚖmainᚋentᚐFileConnectio
 	return ec._FileConnection(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNFileDeleteResponse2mainᚋgraphᚋmodelᚐFileDeleteResponse(ctx context.Context, sel ast.SelectionSet, v model.FileDeleteResponse) graphql.Marshaler {
+	return ec._FileDeleteResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFileDeleteResponse2ᚖmainᚋgraphᚋmodelᚐFileDeleteResponse(ctx context.Context, sel ast.SelectionSet, v *model.FileDeleteResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FileDeleteResponse(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNFileDownloadURLResponse2mainᚋgraphᚋmodelᚐFileDownloadURLResponse(ctx context.Context, sel ast.SelectionSet, v model.FileDownloadURLResponse) graphql.Marshaler {
+	return ec._FileDownloadURLResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFileDownloadURLResponse2ᚖmainᚋgraphᚋmodelᚐFileDownloadURLResponse(ctx context.Context, sel ast.SelectionSet, v *model.FileDownloadURLResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FileDownloadURLResponse(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNFileOrder2ᚖmainᚋentᚐFileOrder(ctx context.Context, v any) (*ent.FileOrder, error) {
 	res, err := ec.unmarshalInputFileOrder(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
@@ -7155,6 +9432,34 @@ func (ec *executionContext) marshalNFileOrderField2ᚖmainᚋentᚐFileOrderFiel
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalNFileResponse2mainᚋgraphᚋmodelᚐFileResponse(ctx context.Context, sel ast.SelectionSet, v model.FileResponse) graphql.Marshaler {
+	return ec._FileResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFileResponse2ᚖmainᚋgraphᚋmodelᚐFileResponse(ctx context.Context, sel ast.SelectionSet, v *model.FileResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FileResponse(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNFileUploadResponse2mainᚋgraphᚋmodelᚐFileUploadResponse(ctx context.Context, sel ast.SelectionSet, v model.FileUploadResponse) graphql.Marshaler {
+	return ec._FileUploadResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFileUploadResponse2ᚖmainᚋgraphᚋmodelᚐFileUploadResponse(ctx context.Context, sel ast.SelectionSet, v *model.FileUploadResponse) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FileUploadResponse(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNFileWhereInput2ᚖmainᚋentᚐFileWhereInput(ctx context.Context, v any) (*ent.FileWhereInput, error) {
@@ -7324,14 +9629,19 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) unmarshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx context.Context, v any) (uuid.UUID, error) {
-	res, err := uuidgql.UnmarshalUUID(v)
+func (ec *executionContext) unmarshalNUpdateFileInfoInput2mainᚋgraphᚋmodelᚐUpdateFileInfoInput(ctx context.Context, v any) (model.UpdateFileInfoInput, error) {
+	res, err := ec.unmarshalInputUpdateFileInfoInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx context.Context, sel ast.SelectionSet, v uuid.UUID) graphql.Marshaler {
+func (ec *executionContext) unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, v any) (graphql.Upload, error) {
+	res, err := graphql.UnmarshalUpload(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, sel ast.SelectionSet, v graphql.Upload) graphql.Marshaler {
 	_ = sel
-	res := uuidgql.MarshalUUID(v)
+	res := graphql.MarshalUpload(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -7340,8 +9650,8 @@ func (ec *executionContext) marshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx
 	return res
 }
 
-func (ec *executionContext) unmarshalNUpdateFileInput2mainᚋentᚐUpdateFileInput(ctx context.Context, v any) (ent.UpdateFileInput, error) {
-	res, err := ec.unmarshalInputUpdateFileInput(ctx, v)
+func (ec *executionContext) unmarshalNUploadFileInput2mainᚋgraphᚋmodelᚐUploadFileInput(ctx context.Context, v any) (model.UploadFileInput, error) {
+	res, err := ec.unmarshalInputUploadFileInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
