@@ -1,11 +1,37 @@
 {
   "error": {
     "file": {
+      "access_denied_for_batch_update": "Access denied for batch update",
+      "archive_creation_failed": "Failed to create archive",
+      "archive_upload_failed": "Failed to upload archive",
+      "create_failed": "Failed to create file",
+      "delete_failed": "Failed to delete file",
+      "delete_permission_denied": "Permission denied to delete file",
+      "file_too_large_for_storage": "File is too large for storage",
+      "filename_too_long": "Filename is too long",
       "get_failed": "Failed to retrieve file",
+      "get_files_failed": "Failed to retrieve files",
+      "get_updated_files_failed": "Failed to retrieve updated files",
+      "no_accessible_files": "No accessible files",
       "no_file": "No file provided",
+      "no_files_selected": "No files selected",
       "not_found": "File not found",
+      "s3_connection_failed": "Failed to connect to S3",
+      "s3_not_configured": "S3 storage is not configured",
+      "size_too_large": "File size is too large",
+      "some_files_not_found": "Some files were not found",
+      "storage_limit_exceeded": "Storage limit exceeded",
+      "storage_not_configured": "Storage is not configured",
       "too_large": "File is too large",
-      "update_failed": "Failed to update file"
+      "too_many_files_for_batch_update": "Too many files for batch update",
+      "too_many_files_selected": "Too many files selected",
+      "update_failed": "Failed to update file",
+      "update_permission_denied": "Permission denied to update file",
+      "upload_failed": "Failed to upload file",
+      "upload_permission_denied": "Permission denied to upload file",
+      "upload_timeout": "File upload timed out",
+      "url_generation_failed": "Failed to generate URL",
+      "view_permission_denied": "Permission denied to view file"
     },
     "internal": {
       "redis_subscription_failed": "Failed to subscribe to Redis channel",
@@ -20,7 +46,10 @@
       "commit_failed": "Failed to commit transaction",
       "failed": "Transaction failed"
     },
-    "unauthorized": "Unauthorized access"
+    "unauthorized": "Unauthorized access",
+    "user": {
+      "not_authenticated": "User not authenticated"
+    }
   },
   "success": {
     "file": {
@@ -36,5 +65,11 @@
     },
     "subdomain": {},
     "tenant": {}
+  },
+  "units": {
+    "storage": {
+      "gb": "GB",
+      "mb": "MB"
+    }
   }
 }

@@ -1,11 +1,37 @@
 {
   "error": {
     "file": {
+      "access_denied_for_batch_update": "Доступ запрещен для пакетного обновления",
+      "archive_creation_failed": "Не удалось создать архив",
+      "archive_upload_failed": "Не удалось загрузить архив",
+      "create_failed": "Не удалось создать файл",
+      "delete_failed": "Не удалось удалить файл",
+      "delete_permission_denied": "Нет прав для удаления файла",
+      "file_too_large_for_storage": "Файл слишком большой для хранилища",
+      "filename_too_long": "Имя файла слишком длинное",
       "get_failed": "Не удалось получить файл",
+      "get_files_failed": "Не удалось получить файлы",
+      "get_updated_files_failed": "Не удалось получить обновленные файлы",
+      "no_accessible_files": "Нет доступных файлов",
       "no_file": "Файл не предоставлен",
+      "no_files_selected": "Файлы не выбраны",
       "not_found": "Файл не найден",
+      "s3_connection_failed": "Не удалось подключиться к S3",
+      "s3_not_configured": "Хранилище S3 не настроено",
+      "size_too_large": "Размер файла слишком большой",
+      "some_files_not_found": "Некоторые файлы не найдены",
+      "storage_limit_exceeded": "Превышен лимит хранилища",
+      "storage_not_configured": "Хранилище не настроено",
       "too_large": "Файл слишком большой",
-      "update_failed": "Не удалось обновить файл"
+      "too_many_files_for_batch_update": "Слишком много файлов для пакетного обновления",
+      "too_many_files_selected": "Выбрано слишком много файлов",
+      "update_failed": "Не удалось обновить файл",
+      "update_permission_denied": "Нет прав для обновления файла",
+      "upload_failed": "Не удалось загрузить файл",
+      "upload_permission_denied": "Нет прав для загрузки файла",
+      "upload_timeout": "Истекло время загрузки файла",
+      "url_generation_failed": "Не удалось сгенерировать URL",
+      "view_permission_denied": "Нет прав для просмотра файла"
     },
     "internal": {
       "redis_subscription_failed": "Не удалось подписаться на канал Redis",
@@ -20,7 +46,10 @@
       "commit_failed": "Не удалось завершить транзакцию",
       "failed": "Транзакция не удалась"
     },
-    "unauthorized": "Неавторизованный доступ"
+    "unauthorized": "Неавторизованный доступ",
+    "user": {
+      "not_authenticated": "Пользователь не аутентифицирован"
+    }
   },
   "success": {
     "file": {
@@ -36,5 +65,11 @@
     },
     "subdomain": {},
     "tenant": {}
+  },
+  "units": {
+    "storage": {
+      "gb": "ГБ",
+      "mb": "МБ"
+    }
   }
 }
