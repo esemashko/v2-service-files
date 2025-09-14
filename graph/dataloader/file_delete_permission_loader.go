@@ -2,9 +2,10 @@ package dataloader
 
 import (
 	"context"
-	federation "github.com/esemashko/v2-federation"
 	"main/ent"
 	"main/ent/file"
+
+	federation "github.com/esemashko/v2-federation"
 
 	"github.com/google/uuid"
 )

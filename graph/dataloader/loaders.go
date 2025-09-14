@@ -3,6 +3,9 @@ package dataloader
 import (
 	"context"
 	"main/ent"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type ctxKey string
@@ -15,6 +18,9 @@ const (
 type Loaders struct {
 	// Federation entity loaders - for resolving entities from other services
 	//FederationTenantLoader *BatchLoader[uuid.UUID, *ent.Tenant]
+
+	// File permission loaders
+	FileCanDeleteLoader *BatchLoader[uuid.UUID, bool]
 }
 
 // NewLoaders creates new data loaders
@@ -22,24 +28,32 @@ func NewLoaders(client *ent.Client) *Loaders {
 	// Federation readers
 	//federationTenantReader := NewFederationTenantReader(client)
 
+	// File permission readers
+	fileDeletePermissionReader := NewFileDeletePermissionReader(client)
+
 	return &Loaders{
 		// Federation loaders
 		//FederationTenantLoader: NewBatchLoader(federationTenantReader.GetTenantsByID, 2*time.Millisecond, 100),
+
+		// File permission loaders
+		FileCanDeleteLoader: NewBatchLoader(fileDeletePermissionReader.GetCanDeleteFlags, 2*time.Millisecond, 100),
 	}
 }
 
 // For returns the loaders from context
 func For(ctx context.Context) *Loaders {
-	v := ctx.Value(LoadersKey)
-	if v == nil {
-		return nil
-	}
-	return v.(*Loaders)
+	return ctx.Value(LoadersKey).(*Loaders)
 }
 
 // WithLoaders stores the loaders in the context
 func WithLoaders(ctx context.Context, loaders *Loaders) context.Context {
 	return context.WithValue(ctx, LoadersKey, loaders)
+}
+
+// GetFileCanDelete returns canDelete flag for a single file
+func GetFileCanDelete(ctx context.Context, fileID uuid.UUID) (bool, error) {
+	loaders := For(ctx)
+	return loaders.FileCanDeleteLoader.Load(ctx, fileID)
 }
 
 // GetFederationTenant gets a Tenant entity for federation resolution

@@ -8,15 +8,10 @@ import (
 	"context"
 	"main/ent"
 	entfile "main/ent/file"
-	"main/ent/ticket"
-	"main/ent/ticketcomment"
-	"main/ent/ticketcommentfile"
-	"main/ent/ticketfile"
 	"main/graph/dataloader"
 	"main/graph/model"
 	fileservice "main/services/file"
 	"main/utils"
-	"main/websocket"
 
 	"entgo.io/contrib/entgql"
 	"github.com/google/uuid"
@@ -25,6 +20,8 @@ import (
 
 // UploadFile is the resolver for the uploadFile field.
 func (r *mutationResolver) UploadFile(ctx context.Context, input model.UploadFileInput) (*model.FileUploadResponse, error) {
+	client := r.getClient(ctx)
+
 	// 🔒 [PERMISSION CHECK] Проверяем права на загрузку файлов
 	fileService := fileservice.NewFileService()
 	if err := fileService.CanUploadFile(ctx); err != nil {
@@ -71,7 +68,7 @@ func (r *mutationResolver) UploadFile(ctx context.Context, input model.UploadFil
 	}
 
 	// Используем сервис для загрузки файла
-	fileResult, err := fileService.UploadFile(ctx, r.client, fileInput)
+	fileResult, err := fileService.UploadFile(ctx, client, fileInput)
 	if err != nil {
 		utils.Logger.Error("Failed to upload file",
 			zap.Error(err),
@@ -92,9 +89,11 @@ func (r *mutationResolver) UploadFile(ctx context.Context, input model.UploadFil
 
 // UpdateFileInfo is the resolver for the updateFileInfo field.
 func (r *mutationResolver) UpdateFileInfo(ctx context.Context, id uuid.UUID, input model.UpdateFileInfoInput) (*model.FileResponse, error) {
+	client := r.getClient(ctx)
+
 	// 🔒 [PERMISSION CHECK] Проверяем права на обновление файла
 	fileService := fileservice.NewFileService()
-	if err := fileService.CanUpdateFile(ctx, r.client, id); err != nil {
+	if err := fileService.CanUpdateFile(ctx, client, id); err != nil {
 		return &model.FileResponse{
 			Success: false,
 			Message: err.Error(),
@@ -103,7 +102,7 @@ func (r *mutationResolver) UpdateFileInfo(ctx context.Context, id uuid.UUID, inp
 	}
 
 	// Создаем updater
-	updater := r.client.File.UpdateOneID(id)
+	updater := client.File.UpdateOneID(id)
 
 	// Обновляем только переданные поля
 	if input.Description != nil {
@@ -114,7 +113,7 @@ func (r *mutationResolver) UpdateFileInfo(ctx context.Context, id uuid.UUID, inp
 	}
 
 	// Выполняем обновление
-	ctxWithClient := ent.NewContext(ctx, r.client)
+	ctxWithClient := ent.NewContext(ctx, client)
 	updatedFile, err := updater.Save(ctxWithClient)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -141,14 +140,16 @@ func (r *mutationResolver) UpdateFileInfo(ctx context.Context, id uuid.UUID, inp
 
 // DeleteFile is the resolver for the deleteFile field.
 func (r *mutationResolver) DeleteFile(ctx context.Context, id uuid.UUID) (*model.FileDeleteResponse, error) {
+	client := r.getClient(ctx)
+
 	// 🔒 [PERMISSION CHECK]
 	fileService := fileservice.NewFileService()
-	if err := fileService.CanDeleteFile(ctx, r.client, id); err != nil {
+	if err := fileService.CanDeleteFile(ctx, client, id); err != nil {
 		return &model.FileDeleteResponse{Success: false, Message: err.Error()}, nil
 	}
 
 	// 🔄 [TRANSACTION]
-	tx, err := r.client.Tx(ctx)
+	tx, err := client.Tx(ctx)
 	if err != nil {
 		return &model.FileDeleteResponse{Success: false, Message: utils.T(ctx, "error.transaction.failed")}, nil
 	}
@@ -160,60 +161,11 @@ func (r *mutationResolver) DeleteFile(ctx context.Context, id uuid.UUID) (*model
 
 	txCtx := ent.NewTxContext(ctx, tx)
 
-	// Сохраняем связанные TicketID и CommentID ДО удаления
-	ticketIDs, tErr := tx.Client().Ticket.Query().
-		Where(ticket.HasTicketFilesWith(ticketfile.HasFileWith(entfile.ID(id)))).
-		IDs(txCtx)
-	if tErr != nil {
-		utils.Logger.Error("Failed to fetch related tickets for file delete", zap.Error(tErr), zap.String("file_id", id.String()))
-	}
-
-	commentIDs, cErr := tx.Client().TicketComment.Query().
-		Where(ticketcomment.HasCommentFilesWith(ticketcommentfile.HasFileWith(entfile.ID(id)))).
-		IDs(txCtx)
-	if cErr != nil {
-		utils.Logger.Error("Failed to fetch related comments for file delete", zap.Error(cErr), zap.String("file_id", id.String()))
-	}
-
 	// Удаляем файл через сервис (включает удаление из S3 и БД)
 	if err = fileService.DeleteFile(txCtx, tx.Client(), id); err != nil {
 		utils.Logger.Error("Failed to delete file", zap.Error(err), zap.String("file_id", id.String()))
 		return &model.FileDeleteResponse{Success: false, Message: err.Error()}, nil
 	}
-
-	// Post-commit публикация событий
-	// Убираем дубликаты
-	uniqTickets := make(map[uuid.UUID]struct{}, len(ticketIDs))
-	for _, tid := range ticketIDs {
-		uniqTickets[tid] = struct{}{}
-	}
-	uniqComments := make(map[uuid.UUID]struct{}, len(commentIDs))
-	for _, cid := range commentIDs {
-		uniqComments[cid] = struct{}{}
-	}
-
-	tx.OnCommit(ent.CommitHook(func(next ent.Committer) ent.Committer {
-		return ent.CommitFunc(func(ctx context.Context, tx *ent.Tx) error {
-			if err := next.Commit(ctx, tx); err != nil {
-				return err
-			}
-
-			publisher := websocket.NewPublisher()
-			// Публикуем обновление для тикетов
-			for tid := range uniqTickets {
-				if pubErr := publisher.PublishEntityUpdated(ctx, "ticket", tid); pubErr != nil {
-					utils.Logger.Error("Failed to publish ticket update after file deletion", zap.Error(pubErr), zap.String("ticket_id", tid.String()))
-				}
-			}
-			// Публикуем обновление для комментариев (тип ticket_comment для совместимости с подпиской UpdatedTicketComment)
-			for cid := range uniqComments {
-				if pubErr := publisher.PublishEntityUpdated(ctx, "ticket_comment", cid); pubErr != nil {
-					utils.Logger.Error("Failed to publish comment update after file deletion", zap.Error(pubErr), zap.String("comment_id", cid.String()))
-				}
-			}
-			return nil
-		})
-	}))
 
 	if err = tx.Commit(); err != nil {
 		return &model.FileDeleteResponse{Success: false, Message: utils.T(ctx, "error.transaction.commit_failed")}, nil
@@ -224,9 +176,11 @@ func (r *mutationResolver) DeleteFile(ctx context.Context, id uuid.UUID) (*model
 
 // File is the resolver for the file field.
 func (r *queryResolver) File(ctx context.Context, id uuid.UUID) (*model.FileResponse, error) {
+	client := r.getClient(ctx)
+
 	// 🔒 [PERMISSION CHECK] Проверяем права на просмотр файла
 	fileService := fileservice.NewFileService()
-	if err := fileService.CanViewFile(ctx, r.client, id); err != nil {
+	if err := fileService.CanViewFile(ctx, client, id); err != nil {
 		return &model.FileResponse{
 			Success: false,
 			Message: err.Error(),
@@ -235,9 +189,8 @@ func (r *queryResolver) File(ctx context.Context, id uuid.UUID) (*model.FileResp
 	}
 
 	// Получаем детали файла
-	file, err := r.client.File.Query().
+	file, err := client.File.Query().
 		Where(entfile.ID(id)).
-		WithUploader().
 		Only(ctx)
 
 	if err != nil {
@@ -262,13 +215,38 @@ func (r *queryResolver) File(ctx context.Context, id uuid.UUID) (*model.FileResp
 	}, nil
 }
 
-// FileList is the resolver for the fileList field.
-func (r *queryResolver) FileList(ctx context.Context, after *entgql.Cursor[uuid.UUID], first *int, before *entgql.Cursor[uuid.UUID], last *int, orderBy []*ent.FileOrder, where *ent.FileWhereInput) (*ent.FileConnection, error) {
+// Files is the resolver for the files field.
+func (r *queryResolver) Files(ctx context.Context, after *entgql.Cursor[uuid.UUID], first *int, before *entgql.Cursor[uuid.UUID], last *int, orderBy []*ent.FileOrder, where *ent.FileWhereInput) (*ent.FileConnection, error) {
+	client := r.getClient(ctx)
+
 	// Для списка файлов проверяем только базовую аутентификацию
 	// Конкретные права проверяются на уровне каждого файла
 
 	// Создаем запрос для получения файлов
-	query := r.client.File.Query()
+	query := client.File.Query()
+
+	// Применяем CollectFields для оптимизации
+	query, err := query.CollectFields(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Возвращаем пагинированный результат
+	return query.Paginate(ctx, after, first, before, last,
+		ent.WithFileFilter(where.Filter),
+		ent.WithFileOrder(orderBy),
+	)
+}
+
+// FileList is the resolver for the fileList field.
+func (r *queryResolver) FileList(ctx context.Context, after *entgql.Cursor[uuid.UUID], first *int, before *entgql.Cursor[uuid.UUID], last *int, orderBy []*ent.FileOrder, where *ent.FileWhereInput) (*ent.FileConnection, error) {
+	client := r.getClient(ctx)
+
+	// Для списка файлов проверяем только базовую аутентификацию
+	// Конкретные права проверяются на уровне каждого файла
+
+	// Создаем запрос для получения файлов
+	query := client.File.Query()
 
 	// Применяем CollectFields для оптимизации
 	query, err := query.CollectFields(ctx)
@@ -285,6 +263,8 @@ func (r *queryResolver) FileList(ctx context.Context, after *entgql.Cursor[uuid.
 
 // FilesByUser is the resolver for the filesByUser field.
 func (r *queryResolver) FilesByUser(ctx context.Context, userID uuid.UUID, limit *int, offset *int) (*model.FileListResponse, error) {
+	client := r.getClient(ctx)
+
 	// Устанавливаем значения по умолчанию
 	limitValue := 20
 	offsetValue := 0
@@ -298,7 +278,7 @@ func (r *queryResolver) FilesByUser(ctx context.Context, userID uuid.UUID, limit
 
 	// Получаем файлы пользователя через сервис
 	fileService := fileservice.NewFileService()
-	files, err := fileService.GetFilesByUser(ctx, r.client, userID, limitValue, offsetValue)
+	files, err := fileService.GetFilesByUser(ctx, client, userID, limitValue, offsetValue)
 	if err != nil {
 		utils.Logger.Error("Failed to get files by user",
 			zap.Error(err),
@@ -325,9 +305,11 @@ func (r *queryResolver) FilesByUser(ctx context.Context, userID uuid.UUID, limit
 
 // GetFileDownloadURL is the resolver for the getFileDownloadURL field.
 func (r *mutationResolver) GetFileDownloadURL(ctx context.Context, id uuid.UUID) (*model.FileDownloadURLResponse, error) {
+	client := r.getClient(ctx)
+
 	// Получаем pre-signed URL для файла через сервис
 	fileService := fileservice.NewFileService()
-	result, err := fileService.GetFileDownloadURL(ctx, r.client, id)
+	result, err := fileService.GetFileDownloadURL(ctx, client, id)
 	if err != nil {
 		utils.Logger.Error("Failed to get file download URL",
 			zap.Error(err),
@@ -349,6 +331,8 @@ func (r *mutationResolver) GetFileDownloadURL(ctx context.Context, id uuid.UUID)
 
 // GetBatchDownloadURL is the resolver for the getBatchDownloadURL field.
 func (r *mutationResolver) GetBatchDownloadURL(ctx context.Context, input model.BatchDownloadInput) (*model.BatchDownloadURLResponse, error) {
+	client := r.getClient(ctx)
+
 	// FileIds уже являются []uuid.UUID, поэтому преобразование не нужно
 	fileIDs := input.FileIds
 
@@ -360,7 +344,7 @@ func (r *mutationResolver) GetBatchDownloadURL(ctx context.Context, input model.
 
 	// Получаем pre-signed URL для архива через сервис
 	fileService := fileservice.NewFileService()
-	result, err := fileService.GetBatchDownloadURL(ctx, r.client, fileIDs, archiveName)
+	result, err := fileService.GetBatchDownloadURL(ctx, client, fileIDs, archiveName)
 	if err != nil {
 		utils.Logger.Error("Failed to get batch download URL",
 			zap.Error(err),

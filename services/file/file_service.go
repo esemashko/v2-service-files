@@ -6,11 +6,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"main/ctxkeys"
 	"main/ent"
 	"main/ent/file"
-	"main/ent/user"
-	fileprivacy "main/privacy/file"
 	"main/s3"
 	"main/types"
 	"main/utils"
@@ -20,6 +17,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	federation "github.com/esemashko/v2-federation"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -35,38 +33,25 @@ const (
 
 // FileService provides file management operations
 type FileService struct {
-	s3Service    *s3.S3Service
-	auditService *FileAuditService
+	s3Service *s3.S3Service
 }
 
 // hasAdminRole проверяет, имеет ли пользователь админскую роль
 func (s *FileService) hasAdminRole(ctx context.Context) bool {
-	localUser := ctxkeys.GetLocalUser(ctx)
-	if localUser == nil {
+	userRole := federation.GetUserRole(ctx)
+	if userRole == "" {
 		return false
 	}
-
-	userRole, err := localUser.Role(ctx)
-	if err != nil {
-		return false
-	}
-
-	return userRole != nil && types.IsRoleHigherOrEqual(userRole.Code, types.RoleAdmin)
+	return types.IsRoleHigherOrEqual(userRole, types.RoleAdmin)
 }
 
 // isMember проверяет, имеет ли пользователь роль member или выше
 func (s *FileService) isMember(ctx context.Context) bool {
-	localUser := ctxkeys.GetLocalUser(ctx)
-	if localUser == nil {
+	userRole := federation.GetUserRole(ctx)
+	if userRole == "" {
 		return false
 	}
-
-	userRole, err := localUser.Role(ctx)
-	if err != nil {
-		return false
-	}
-
-	return userRole != nil && types.IsRoleHigherOrEqual(userRole.Code, types.RoleMember)
+	return types.IsRoleHigherOrEqual(userRole, types.RoleMember)
 }
 
 // canDownloadFile проверяет, может ли пользователь скачивать файл
@@ -82,16 +67,30 @@ func (s *FileService) canDownloadFile(ctx context.Context, client *ent.Client, f
 	}
 
 	// Аутентификация пользователя и роль
-	userID := ctxkeys.GetUserID(ctx)
-	var userRoleCode string
-	if localUser := ctxkeys.GetLocalUser(ctx); localUser != nil {
-		if userRole, err := localUser.Role(ctx); err == nil && userRole != nil {
-			userRoleCode = userRole.Code
+	userID := federation.GetUserID(ctx)
+	if userID == nil {
+		return fmt.Errorf("%s", utils.T(ctx, "error.user.not_authenticated"))
+	}
+	userRoleCode := federation.GetUserRole(ctx)
+
+	// Проверяем доступ - для простоты проверяем только что файл принадлежит пользователю или пользователь админ
+	fileRecord, err := client.File.Query().
+		Where(file.ID(fileID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return fmt.Errorf("%s", utils.T(ctx, "error.file.not_found"))
 		}
+		return fmt.Errorf("%s", utils.T(ctx, "error.file.get_failed"))
 	}
 
-	// Проверяем доступ через централизованные предикаты (автор файла, доступ к тикету/комментарию/чату)
-	if err := fileprivacy.CanAccessFile(ctx, client, userID, userRoleCode, fileID); err != nil {
+	// Админы могут видеть все файлы
+	if types.IsRoleHigherOrEqual(userRoleCode, types.RoleAdmin) {
+		return nil
+	}
+
+	// Пользователи могут видеть только свои файлы
+	if fileRecord.CreatedBy != *userID {
 		return fmt.Errorf("%s", utils.T(ctx, "error.file.view_permission_denied"))
 	}
 	return nil
@@ -99,12 +98,14 @@ func (s *FileService) canDownloadFile(ctx context.Context, client *ent.Client, f
 
 // CanUpdateFile проверяет, может ли пользователь редактировать файл
 func (s *FileService) CanUpdateFile(ctx context.Context, client *ent.Client, fileID uuid.UUID) error {
-	userID := ctxkeys.GetUserID(ctx)
+	userID := federation.GetUserID(ctx)
+	if userID == nil {
+		return fmt.Errorf("%s", utils.T(ctx, "error.user.not_authenticated"))
+	}
 
-	// Получаем файл с загрузчиком
+	// Получаем файл
 	fileRecord, err := client.File.Query().
 		Where(file.ID(fileID)).
-		WithUploader().
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -119,7 +120,7 @@ func (s *FileService) CanUpdateFile(ctx context.Context, client *ent.Client, fil
 	}
 
 	// Пользователи могут редактировать только свои файлы
-	if fileRecord.Edges.Uploader != nil && fileRecord.Edges.Uploader.ID == userID {
+	if fileRecord.CreatedBy == *userID {
 		return nil
 	}
 
@@ -128,8 +129,8 @@ func (s *FileService) CanUpdateFile(ctx context.Context, client *ent.Client, fil
 
 // CanUploadFile проверяет, может ли пользователь загружать файлы
 func (s *FileService) CanUploadFile(ctx context.Context) error {
-	userID := ctxkeys.GetUserID(ctx)
-	if userID != uuid.Nil {
+	userID := federation.GetUserID(ctx)
+	if userID != nil {
 		return nil
 	}
 	return fmt.Errorf("%s", utils.T(ctx, "error.file.upload_permission_denied"))
@@ -137,12 +138,14 @@ func (s *FileService) CanUploadFile(ctx context.Context) error {
 
 // CanDeleteFile проверяет, может ли пользователь удалять файл
 func (s *FileService) CanDeleteFile(ctx context.Context, client *ent.Client, fileID uuid.UUID) error {
-	userID := ctxkeys.GetUserID(ctx)
+	userID := federation.GetUserID(ctx)
+	if userID == nil {
+		return fmt.Errorf("%s", utils.T(ctx, "error.user.not_authenticated"))
+	}
 
-	// Получаем файл с загрузчиком
+	// Получаем файл
 	fileRecord, err := client.File.Query().
 		Where(file.ID(fileID)).
-		WithUploader().
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -157,7 +160,7 @@ func (s *FileService) CanDeleteFile(ctx context.Context, client *ent.Client, fil
 	}
 
 	// Пользователи могут удалять только свои файлы
-	if fileRecord.Edges.Uploader != nil && fileRecord.Edges.Uploader.ID == userID {
+	if fileRecord.CreatedBy == *userID {
 		return nil
 	}
 
@@ -175,9 +178,28 @@ func (s *FileService) CanViewFile(ctx context.Context, client *ent.Client, fileI
 // NewFileService creates a new file service
 func NewFileService() *FileService {
 	return &FileService{
-		s3Service:    s3.NewS3Service(),
-		auditService: NewFileAuditService(),
+		s3Service: s3.NewS3Service(),
 	}
+}
+
+// getCurrentStorageUsage возвращает текущее использование хранилища для тенанта
+func (s *FileService) getCurrentStorageUsage(ctx context.Context, client *ent.Client) (int64, error) {
+	tenantID := federation.GetTenantID(ctx)
+	if tenantID == nil {
+		return 0, fmt.Errorf("tenant ID not found in context")
+	}
+
+	// Получаем суммарный размер всех файлов тенанта
+	var totalSize int64
+	err := client.File.Query().
+		Where(file.TenantID(*tenantID)).
+		Aggregate(ent.Sum(file.FieldSize)).
+		Scan(ctx, &totalSize)
+	if err != nil {
+		return 0, err
+	}
+
+	return totalSize, nil
 }
 
 // UploadFileInput contains file upload parameters
@@ -210,7 +232,6 @@ func (s *FileService) GetFileDownloadURL(ctx context.Context, client *ent.Client
 	// Получаем файл из базы данных
 	fileRecord, err := client.File.Query().
 		Where(file.ID(fileID)).
-		WithUploader().
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -229,7 +250,8 @@ func (s *FileService) GetFileDownloadURL(ctx context.Context, client *ent.Client
 	}
 
 	// 📊 [AUDIT] Логируем генерацию URL для скачивания
-	s.auditService.LogFileDownloadUrlGeneration(ctx, client, fileID)
+	utils.Logger.Info("File download URL generated",
+		zap.String("file_id", fileID.String()))
 
 	return &FileDownloadUrlResult{
 		URL:       url,
@@ -282,7 +304,10 @@ func (s *FileService) GetBatchDownloadURL(ctx context.Context, client *ent.Clien
 		}
 
 		// 📊 [AUDIT] Логируем каждый файл отдельно как скачанный в составе архива
-		s.auditService.LogFileBatchDownload(ctx, client, fileRecord.ID, archiveName, len(files))
+		utils.Logger.Info("File included in batch download",
+			zap.String("file_id", fileRecord.ID.String()),
+			zap.String("archive_name", archiveName),
+			zap.Int("total_files", len(files)))
 	}
 
 	if err := zipWriter.Close(); err != nil {
@@ -326,7 +351,6 @@ func (s *FileService) validateAndGetFilesForBatch(ctx context.Context, client *e
 	// Получаем все файлы из базы данных
 	files, err := client.File.Query().
 		Where(file.IDIn(fileIDs...)).
-		WithUploader().
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%s", utils.T(ctx, "error.file.get_files_failed"))
@@ -467,7 +491,15 @@ func (s *FileService) UploadFile(ctx context.Context, client *ent.Client, input 
 	}
 
 	// 📊 [STORAGE LIMIT CHECK] Проверяем лимит хранилища перед загрузкой
-	if err := s.s3Service.CheckStorageLimitWithFilename(ctx, upload.Filename, upload.Size); err != nil {
+	// Получаем текущее использование из базы данных
+	currentUsage, err := s.getCurrentStorageUsage(ctx, client)
+	if err != nil {
+		utils.Logger.Warn("Failed to get current storage usage, proceeding without limit check",
+			zap.Error(err))
+		currentUsage = 0
+	}
+
+	if err := s.s3Service.CheckStorageLimitWithFilename(ctx, upload.Filename, upload.Size, currentUsage); err != nil {
 		utils.Logger.Info("Storage limit check failed",
 			zap.String("filename", upload.Filename),
 			zap.Int64("file_size", upload.Size),
@@ -484,9 +516,9 @@ func (s *FileService) UploadFile(ctx context.Context, client *ent.Client, input 
 				zap.String("filename", storageNotConfiguredErr.FileName),
 				zap.Int64("file_size", storageNotConfiguredErr.FileSize))
 
-			s.auditService.LogStorageNotConfiguredViolation(ctx, client,
-				storageNotConfiguredErr.FileName,
-				storageNotConfiguredErr.FileSize)
+			utils.Logger.Warn("Storage not configured violation",
+				zap.String("filename", storageNotConfiguredErr.FileName),
+				zap.Int64("file_size", storageNotConfiguredErr.FileSize))
 
 			utils.Logger.Info("LogStorageNotConfiguredViolation call completed")
 
@@ -507,11 +539,11 @@ func (s *FileService) UploadFile(ctx context.Context, client *ent.Client, input 
 				zap.String("filename", storageLimitErr.FileName),
 				zap.Int64("file_size", storageLimitErr.FileSize))
 
-			s.auditService.LogStorageLimitViolation(ctx, client,
-				storageLimitErr.FileName,
-				storageLimitErr.FileSize,
-				storageLimitErr.CurrentUsage,
-				storageLimitErr.StorageLimit)
+			utils.Logger.Warn("Storage limit violation",
+				zap.String("filename", storageLimitErr.FileName),
+				zap.Int64("file_size", storageLimitErr.FileSize),
+				zap.Int64("current_usage", storageLimitErr.CurrentUsage),
+				zap.Int64("storage_limit", storageLimitErr.StorageLimit))
 
 			utils.Logger.Info("LogStorageLimitViolation call completed")
 
@@ -576,8 +608,8 @@ func (s *FileService) UploadFile(ctx context.Context, client *ent.Client, input 
 	}
 
 	// Get user from context for database record
-	localUser := ctxkeys.GetLocalUser(ctx)
-	if localUser == nil {
+	userID := federation.GetUserID(ctx)
+	if userID == nil {
 		// Cleanup S3 file if user not found
 		if deleteErr := s.s3Service.DeleteFile(ctx, storageKey); deleteErr != nil {
 			utils.Logger.Error("Failed to cleanup S3 file after user context error",
@@ -595,7 +627,7 @@ func (s *FileService) UploadFile(ctx context.Context, client *ent.Client, input 
 		SetStorageKey(storageKey).
 		SetMimeType(contentType).
 		SetSize(upload.Size).
-		SetUploaderID(localUser.ID).
+		SetCreatedBy(*userID).
 		SetNillableDescription(input.Description).
 		Save(ctxWithClient)
 	if err != nil {
@@ -644,7 +676,7 @@ func (s *FileService) GetFilesByUser(ctx context.Context, client *ent.Client, us
 	ctxWithClient := ent.NewContext(ctx, client)
 
 	files, err := client.File.Query().
-		Where(file.HasUploaderWith(user.ID(userID))).
+		Where(file.CreatedBy(userID)).
 		Limit(limit).
 		Offset(offset).
 		Order(ent.Desc(file.FieldCreateTime)).
@@ -662,7 +694,6 @@ func (s *FileService) GetFileInfo(ctx context.Context, client *ent.Client, fileI
 
 	fileRecord, err := client.File.Query().
 		Where(file.ID(fileID)).
-		WithUploader().
 		Only(ctxWithClient)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -674,7 +705,7 @@ func (s *FileService) GetFileInfo(ctx context.Context, client *ent.Client, fileI
 	return fileRecord, nil
 }
 
-// UpdateFilesBatch: visibility removed, method retained to avoid breaking callers until resolvers are cleaned
+// UpdateFilesBatch updates multiple files in batch (deprecated - method retained for compatibility)
 func (s *FileService) UpdateFilesBatch(ctx context.Context, client *ent.Client, fileIDs []uuid.UUID) ([]*ent.File, int, error) {
 	// Валидация входных данных
 	if len(fileIDs) == 0 {
@@ -698,7 +729,6 @@ func (s *FileService) UpdateFilesBatch(ctx context.Context, client *ent.Client, 
 	ctxWithClient := ent.NewContext(ctx, client)
 	files, err := client.File.Query().
 		Where(file.IDIn(fileIDs...)).
-		WithUploader().
 		Limit(maxBatchUpdateFiles).
 		All(ctxWithClient)
 	if err != nil {
@@ -714,7 +744,6 @@ func (s *FileService) UpdateFilesBatch(ctx context.Context, client *ent.Client, 
 	updatedCount := len(files)
 	updatedFilesWithDetails, err := client.File.Query().
 		Where(file.IDIn(fileIDs...)).
-		WithUploader().
 		Limit(maxBatchUpdateFiles).
 		All(ctxWithClient)
 	if err != nil {

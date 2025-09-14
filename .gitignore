@@ -3,6 +3,7 @@
 .env.test
 .env.dev
 .env.full
+.env.example
 tmp
 docker-compose.yml
 backups/

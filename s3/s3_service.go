@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"main/ctxkeys"
 	"main/utils"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,24 +16,26 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	federation "github.com/esemashko/v2-federation"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 // S3Service handles S3 operations for tenant files
 type S3Service struct {
+	config *S3Config
 }
 
-// S3Config contains S3 configuration
+// S3Config contains S3 configuration from environment variables
 type S3Config struct {
-	Region    string
-	Bucket    string
-	AccessKey string
-	SecretKey string
-	Endpoint  string
-	UseSSL    bool
-	PathStyle string
-	UserName  string
+	Region            string
+	Bucket            string
+	AccessKey         string
+	SecretKey         string
+	Endpoint          string
+	UseSSL            bool
+	PathStyle         string
+	StorageLimitBytes int64
 }
 
 // getEnv returns environment variable or default value
@@ -52,9 +54,32 @@ func getEnvBool(key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// NewS3Service creates a new S3 service instance
+// getEnvInt64 returns environment variable as int64 or default value
+func getEnvInt64(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+// NewS3Service creates a new S3 service instance with configuration from environment
 func NewS3Service() *S3Service {
-	return &S3Service{}
+	config := &S3Config{
+		Region:            getEnv("S3_REGION", "us-east-1"),
+		Bucket:            getEnv("S3_BUCKET", ""),
+		AccessKey:         getEnv("S3_ACCESS_KEY", ""),
+		SecretKey:         getEnv("S3_SECRET_KEY", ""),
+		Endpoint:          getEnv("S3_ENDPOINT", ""),
+		UseSSL:            getEnvBool("S3_USE_SSL", true),
+		PathStyle:         getEnv("S3_PATH_STYLE", "auto"),
+		StorageLimitBytes: getEnvInt64("S3_STORAGE_LIMIT_BYTES", -1),
+	}
+
+	return &S3Service{
+		config: config,
+	}
 }
 
 // getS3Client creates an S3 client with given configuration
@@ -87,38 +112,55 @@ func (s *S3Service) getS3Client(config *S3Config) (*s3.S3, error) {
 	return s3.New(sess), nil
 }
 
-// getTenantS3Config returns S3 configuration for the tenant from context
-func (s *S3Service) getTenantS3Config(ctx context.Context) (*S3Config, error) {
-	tenant := ctxkeys.GetTenant(ctx)
-	if tenant == nil {
-		return nil, fmt.Errorf("tenant information not found in context")
+// getS3Config returns S3 configuration from service config
+func (s *S3Service) getS3Config(ctx context.Context) (*S3Config, error) {
+	// Validate configuration
+	if s.config.AccessKey == "" || s.config.SecretKey == "" || s.config.Bucket == "" {
+		return nil, fmt.Errorf("S3 credentials are not configured")
 	}
 
-	// Only use tenant's own S3 config
-	if tenant.S3Config.AccessKey == "" || tenant.S3Config.SecretKey == "" || tenant.S3Config.Bucket == "" {
-		return nil, fmt.Errorf("S3 credentials are not configured for this tenant")
+	// Copy config for this context
+	config := &S3Config{
+		Region:            s.config.Region,
+		Bucket:            s.config.Bucket,
+		AccessKey:         s.config.AccessKey,
+		SecretKey:         s.config.SecretKey,
+		Endpoint:          s.config.Endpoint,
+		UseSSL:            s.config.UseSSL,
+		PathStyle:         s.config.PathStyle,
+		StorageLimitBytes: s.config.StorageLimitBytes,
 	}
 
-	return &S3Config{
-		Region:    tenant.S3Config.Region,
-		Bucket:    tenant.S3Config.Bucket,
-		AccessKey: tenant.S3Config.AccessKey,
-		SecretKey: tenant.S3Config.SecretKey,
-		Endpoint:  tenant.S3Config.Endpoint,
-		UseSSL:    tenant.S3Config.UseSSL,
-		PathStyle: tenant.S3Config.PathStyle,
-		UserName:  tenant.S3Config.UserName,
-	}, nil
+	return config, nil
+}
+
+// getTenantPrefix returns the storage prefix for the tenant
+func (s *S3Service) getTenantPrefix(ctx context.Context) (string, error) {
+	tenantID := federation.GetTenantID(ctx)
+	if tenantID == nil {
+		return "", fmt.Errorf("tenant ID not found in context")
+	}
+
+	return fmt.Sprintf("tenants/%s/", tenantID.String()), nil
 }
 
 // UploadFile uploads a file to S3 and returns the storage key
 func (s *S3Service) UploadFile(ctx context.Context, fileContent io.Reader, originalName, contentType string) (string, error) {
-	config, err := s.getTenantS3Config(ctx)
+	config, err := s.getS3Config(ctx)
 	if err != nil {
-		utils.Logger.Error("Failed to get tenant S3 config for upload",
+		utils.Logger.Error("Failed to get S3 config for upload",
 			zap.Error(err),
 			zap.String("filename", originalName))
 		return "", fmt.Errorf("failed to get S3 config: %w", err)
+	}
+
+	// Get tenant prefix
+	tenantPrefix, err := s.getTenantPrefix(ctx)
+	if err != nil {
+		utils.Logger.Error("Failed to get tenant prefix",
+			zap.Error(err),
+			zap.String("filename", originalName))
+		return "", fmt.Errorf("failed to get tenant prefix: %w", err)
 	}
 
 	// 🔍 [DEBUG] Логируем конфигурацию S3 (без секретов)
@@ -129,6 +171,7 @@ func (s *S3Service) UploadFile(ctx context.Context, fileContent io.Reader, origi
 		zap.String("endpoint", config.Endpoint),
 		zap.Bool("use_ssl", config.UseSSL),
 		zap.String("path_style", config.PathStyle),
+		zap.String("tenant_prefix", tenantPrefix),
 		zap.Bool("has_access_key", config.AccessKey != ""),
 		zap.Bool("has_secret_key", config.SecretKey != ""))
 
@@ -142,8 +185,8 @@ func (s *S3Service) UploadFile(ctx context.Context, fileContent io.Reader, origi
 		return "", fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
-	// Generate unique storage key
-	storageKey := s.generateStorageKey(originalName)
+	// Generate unique storage key with tenant prefix
+	storageKey := tenantPrefix + s.generateStorageKey(originalName)
 
 	// Create uploader
 	uploader := s3manager.NewUploaderWithClient(client)
@@ -180,7 +223,7 @@ func (s *S3Service) UploadFile(ctx context.Context, fileContent io.Reader, origi
 
 // DeleteFile deletes a file from S3
 func (s *S3Service) DeleteFile(ctx context.Context, storageKey string) error {
-	config, err := s.getTenantS3Config(ctx)
+	config, err := s.getS3Config(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get S3 config: %w", err)
 	}
@@ -203,7 +246,7 @@ func (s *S3Service) DeleteFile(ctx context.Context, storageKey string) error {
 
 // GetPresignedURL generates a presigned URL for file access
 func (s *S3Service) GetPresignedURL(ctx context.Context, storageKey string, expiration time.Duration) (string, error) {
-	config, err := s.getTenantS3Config(ctx)
+	config, err := s.getS3Config(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get S3 config: %w", err)
 	}
@@ -304,7 +347,7 @@ func truncateFilename(filename string, maxLength int) string {
 
 // GetFileInfo returns information about a file in S3
 func (s *S3Service) GetFileInfo(ctx context.Context, storageKey string) (*s3.HeadObjectOutput, error) {
-	config, err := s.getTenantS3Config(ctx)
+	config, err := s.getS3Config(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get S3 config: %w", err)
 	}
@@ -327,7 +370,7 @@ func (s *S3Service) GetFileInfo(ctx context.Context, storageKey string) (*s3.Hea
 
 // GetFileObject получает файл из S3 как поток для чтения
 func (s *S3Service) GetFileObject(ctx context.Context, storageKey string) (io.ReadCloser, error) {
-	config, err := s.getTenantS3Config(ctx)
+	config, err := s.getS3Config(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get S3 config: %w", err)
 	}
@@ -349,15 +392,15 @@ func (s *S3Service) GetFileObject(ctx context.Context, storageKey string) (io.Re
 }
 
 // CheckStorageLimit проверяет, не превысит ли загрузка файла лимит хранилища (с учетом буфера 10%)
-func (s *S3Service) CheckStorageLimit(ctx context.Context, fileSize int64) error {
-	// Получаем информацию о тенанте
-	tenant := ctxkeys.GetTenant(ctx)
-	if tenant == nil {
-		return fmt.Errorf("tenant information not found in context")
+func (s *S3Service) CheckStorageLimit(ctx context.Context, fileSize int64, currentUsage int64) error {
+	// Получаем tenant ID для логирования
+	tenantID := federation.GetTenantID(ctx)
+	if tenantID == nil {
+		return fmt.Errorf("tenant ID not found in context")
 	}
 
-	// Получаем лимит хранилища
-	storageLimit := tenant.S3Config.StorageLimitBytes
+	// Получаем лимит хранилища из конфигурации
+	storageLimit := s.config.StorageLimitBytes
 	if storageLimit < 0 {
 		// Если лимит отрицательный, пропускаем проверку (не настроен)
 		return nil
@@ -366,7 +409,7 @@ func (s *S3Service) CheckStorageLimit(ctx context.Context, fileSize int64) error
 	// Если лимит равен 0, блокируем любую загрузку
 	if storageLimit == 0 {
 		utils.Logger.Warn("Storage limit is zero - no uploads allowed",
-			zap.String("tenant_id", tenant.ID.String()),
+			zap.String("tenant_id", tenantID.String()),
 			zap.Int64("file_size", fileSize),
 		)
 
@@ -376,16 +419,13 @@ func (s *S3Service) CheckStorageLimit(ctx context.Context, fileSize int64) error
 	// Добавляем буфер 10%
 	bufferLimit := int64(float64(storageLimit) * 1.1)
 
-	// Используем текущее использование из контекста тенанта
-	currentUsage := tenant.S3Config.CurrentUsageBytes
-
 	// Проверяем, не превысит ли новый файл лимит с буфером
 	if currentUsage+fileSize > bufferLimit {
 		storageLimitGB := storageLimit / (1024 * 1024 * 1024)
 		currentUsageGB := currentUsage / (1024 * 1024 * 1024)
 
 		utils.Logger.Warn("Storage limit exceeded",
-			zap.String("tenant_id", tenant.ID.String()),
+			zap.String("tenant_id", tenantID.String()),
 			zap.Int64("current_usage_bytes", currentUsage),
 			zap.Int64("current_usage_gb", currentUsageGB),
 			zap.Int64("storage_limit_bytes", storageLimit),
@@ -404,28 +444,28 @@ func (s *S3Service) CheckStorageLimit(ctx context.Context, fileSize int64) error
 }
 
 // CheckStorageLimitWithFilename проверяет лимит хранилища с возможностью аудита (для использования в FileService)
-func (s *S3Service) CheckStorageLimitWithFilename(ctx context.Context, fileName string, fileSize int64) error {
-	// Получаем информацию о тенанте
-	tenant := ctxkeys.GetTenant(ctx)
-	if tenant == nil {
-		utils.Logger.Error("Tenant information not found in context for storage limit check",
+func (s *S3Service) CheckStorageLimitWithFilename(ctx context.Context, fileName string, fileSize int64, currentUsage int64) error {
+	// Получаем tenant ID для логирования
+	tenantID := federation.GetTenantID(ctx)
+	if tenantID == nil {
+		utils.Logger.Error("Tenant ID not found in context for storage limit check",
 			zap.String("file_name", fileName),
 			zap.Int64("file_size", fileSize))
-		return fmt.Errorf("tenant information not found in context")
+		return fmt.Errorf("tenant ID not found in context")
 	}
 
 	utils.Logger.Info("Checking storage limit",
-		zap.String("tenant_id", tenant.ID.String()),
+		zap.String("tenant_id", tenantID.String()),
 		zap.String("file_name", fileName),
 		zap.Int64("file_size", fileSize),
-		zap.Int64("storage_limit", tenant.S3Config.StorageLimitBytes),
-		zap.Int64("current_usage", tenant.S3Config.CurrentUsageBytes))
+		zap.Int64("storage_limit", s.config.StorageLimitBytes),
+		zap.Int64("current_usage", currentUsage))
 
-	// Получаем лимит хранилища
-	storageLimit := tenant.S3Config.StorageLimitBytes
+	// Получаем лимит хранилища из конфигурации
+	storageLimit := s.config.StorageLimitBytes
 	if storageLimit < 0 {
 		utils.Logger.Info("Storage limit is negative - skipping check",
-			zap.String("tenant_id", tenant.ID.String()),
+			zap.String("tenant_id", tenantID.String()),
 			zap.Int64("storage_limit", storageLimit))
 		// Если лимит отрицательный, пропускаем проверку (не настроен)
 		return nil
@@ -434,7 +474,7 @@ func (s *S3Service) CheckStorageLimitWithFilename(ctx context.Context, fileName 
 	// Если лимит равен 0, блокируем любую загрузку
 	if storageLimit == 0 {
 		utils.Logger.Warn("Storage limit is zero - no uploads allowed",
-			zap.String("tenant_id", tenant.ID.String()),
+			zap.String("tenant_id", tenantID.String()),
 			zap.String("file_name", fileName),
 			zap.Int64("file_size", fileSize),
 		)
@@ -445,9 +485,6 @@ func (s *S3Service) CheckStorageLimitWithFilename(ctx context.Context, fileName 
 			FileSize: fileSize,
 		}
 	}
-
-	// Используем текущее использование из контекста тенанта
-	currentUsage := tenant.S3Config.CurrentUsageBytes
 
 	// Определяем подходящие единицы для лимита (используем везде)
 	var limit64, limitUnit string
@@ -472,7 +509,7 @@ func (s *S3Service) CheckStorageLimitWithFilename(ctx context.Context, fileName 
 		}
 
 		utils.Logger.Warn("File too large for storage limit",
-			zap.String("tenant_id", tenant.ID.String()),
+			zap.String("tenant_id", tenantID.String()),
 			zap.String("file_name", fileName),
 			zap.Int64("file_size", fileSize),
 			zap.Int64("storage_limit", storageLimit),
@@ -504,7 +541,7 @@ func (s *S3Service) CheckStorageLimitWithFilename(ctx context.Context, fileName 
 		}
 
 		utils.Logger.Warn("Storage limit exceeded",
-			zap.String("tenant_id", tenant.ID.String()),
+			zap.String("tenant_id", tenantID.String()),
 			zap.String("file_name", fileName),
 			zap.Int64("current_usage_bytes", currentUsage),
 			zap.Int64("storage_limit_bytes", storageLimit),
@@ -573,7 +610,7 @@ func (e *FileTooLargeError) Error() string {
 
 // UploadTemporaryFile uploads a temporary file to S3 with a custom storage key
 func (s *S3Service) UploadTemporaryFile(ctx context.Context, fileContent io.Reader, storageKey, contentType string) error {
-	config, err := s.getTenantS3Config(ctx)
+	config, err := s.getS3Config(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get S3 config: %w", err)
 	}
@@ -583,13 +620,19 @@ func (s *S3Service) UploadTemporaryFile(ctx context.Context, fileContent io.Read
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
+	// Get tenant prefix
+	tenantPrefix, err := s.getTenantPrefix(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get tenant prefix: %w", err)
+	}
+
 	// Create uploader
 	uploader := s3manager.NewUploaderWithClient(client)
 
-	// Upload file with custom key
+	// Upload file with tenant prefix
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket:      aws.String(config.Bucket),
-		Key:         aws.String(storageKey),
+		Key:         aws.String(tenantPrefix + storageKey),
 		Body:        fileContent,
 		ContentType: aws.String(contentType),
 	})
