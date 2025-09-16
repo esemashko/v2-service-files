@@ -407,14 +407,85 @@ extend type File @key(fields: "id") {
 
 
 extend type Mutation {
-    uploadFile(input: CreateFileInput!): File! @auth
-    updateFile(id: UUID!, input: UpdateFileInput!): File! @auth
-    deleteFile(id: UUID!): Boolean! @auth
+    uploadFile(input: UploadFileInput!): FileUploadResponse! @auth
+    updateFileInfo(id: ID!, input: UpdateFileInfoInput!): FileResponse! @auth
+    deleteFile(id: ID!): FileDeleteResponse! @auth
+    getFileDownloadURL(id: ID!): FileDownloadURLResponse! @auth
+    getBatchDownloadURL(input: BatchDownloadInput!): BatchDownloadURLResponse! @auth
 }
 
 extend type File {
     # Computed permission: whether current user can delete this file
     canDelete: Boolean! @auth
 }
+
+type FileResponse {
+    success: Boolean!
+    message: String!
+    file: File
+}
+
+type FileUploadResponse {
+    success: Boolean!
+    message: String!
+    file: File
+}
+
+type FileDeleteResponse {
+    success: Boolean!
+    message: String!
+}
+
+type FileListResponse {
+    success: Boolean!
+    message: String!
+    files: [File!]!
+    totalCount: Int!
+}
+
+type FileDownloadURLResponse {
+    success: Boolean!
+    message: String!
+    url: String
+    expiresAt: Time
+}
+
+type BatchDownloadURLResponse {
+    success: Boolean!
+    message: String!
+    url: String
+    expiresAt: Time
+    archiveName: String
+    totalFiles: Int!
+}
+
+
+
+type FilesBatchResponse {
+    success: Boolean!
+    message: String!
+    files: [File!]!
+    totalUpdated: Int!
+}
+
+input UploadFileInput {
+    file: Upload!                    # Файл для загрузки
+    description: String
+}
+
+input UpdateFileInfoInput {
+    originalName: String
+    description: String
+}
+
+"""visibility removed; batch input no longer needed"""
+
+input BatchDownloadInput {
+    fileIds: [ID!]!                 # Список ID файлов для архивирования
+    archiveName: String              # Опциональное имя архива
+}
+
+
+scalar Upload
 
 
